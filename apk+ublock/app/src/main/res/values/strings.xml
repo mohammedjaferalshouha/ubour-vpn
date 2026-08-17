@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">عبور</string>
+    <string name="app_title">عبور + مانع الإعلانات</string>
+    <string name="app_subtitle">تجاوز حجب DPI وتصفية شاملة للإعلانات والتتبع</string>
+    <string name="notification_channel_name">خدمة عبور VPN و مانع الإعلانات</string>
+    <string name="notification_channel_desc">إشعار خدمة التجاوز وتصفية الإعلانات في الخلفية</string>
+
+    <string name="status_disconnected">غير متصل</string>
+    <string name="status_connecting">جاري الاتصال وتفعيل التصفية...</string>
+    <string name="status_connected">متصل وآمن</string>
+    <string name="status_connected_full">متصل: تجاوز الحجب + منع الإعلانات والتتبع نشط</string>
+    <string name="status_connected_adblock_only">متصل: وضع منع الإعلانات والتتبع فقط (توفير طاقة)</string>
+    <string name="status_disconnecting">جاري قطع الاتصال...</string>
+
+    <string name="status_desc_off">اضغط الزر لبدء تشغيل الخدمة الآمنة ومنع الإعلانات</string>
+    <string name="status_desc_on">الحماية وتجاوز الحجب نشطان الآن بأعلى كفاءة</string>
+
+    <string name="btn_connect">تشغيل الخدمة</string>
+    <string name="btn_disconnect">قطع الاتصال</string>
+
+    <string name="section_adblock_title">درع منع الإعلانات والتتبع</string>
+    <string name="section_adblock_desc">محرك مدمج بقواعد uBlock Origin و AdGuard</string>
+    <string name="adblock_switch_label">تفعيل منع وتصفية الإعلانات والتتبع</string>
+
+    <string name="op_mode_title">وضع التشغيل الأساسي</string>
+    <string name="op_mode_full">تجاوز الحجب + منع الإعلانات (شامل)</string>
+    <string name="op_mode_adblock_only">منع الإعلانات فقط (خفيف على البطارية)</string>
+    <string name="op_mode_vpn_only">تجاوز الحجب فقط (بدون تصفية)</string>
+
+    <string name="mode_title">وضع تجاوز الـ DPI</string>
+    <string name="mode_standard">الوضع الافتراضي (Mode 9)</string>
+    <string name="mode_fast">وضع التجزئة السريع</string>
+    <string name="mode_aggressive">الوضع المتقدم (Fake SNI)</string>
+    <string name="mode_custom">وضع مخصص</string>
+
+    <string name="stat_duration">مدة الاتصال</string>
+    <string name="stat_download">التحميل</string>
+    <string name="stat_upload">الرفع</string>
+    <string name="stat_blocked_ads">الإعلانات الممنوعة</string>
+    <string name="stat_blocked_trackers">مسارات التتبع</string>
+    <string name="stat_rules_count">قواعد التصفية</string>
+
+    <string name="action_settings">الإعدادات</string>
+    <string name="action_check_updates">فحص التحديثات</string>
+    <string name="checking_updates">جاري فحص التحديثات من المستودع...</string>
+    <string name="update_available_title">تحديث جديد متوفر!</string>
+    <string name="update_available_msg">تم إصدار نسخة جديدة من أداة التجاوز: %1$s</string>
+    <string name="update_current_msg">أداة التجاوز محدثة لآخر إصدار.</string>
+    <string name="btn_download_update">تحميل التحديث</string>
+    <string name="btn_close">إغلاق</string>
+
+    <string name="settings_theme_title">مظهر التطبيق (السمة)</string>
+    <string name="theme_system">تلقائي (حسب إعدادات النظام)</string>
+    <string name="theme_dark">الوضع الداكن</string>
+    <string name="theme_light">الوضع الفاتح</string>
+
+    <string name="settings_dns_title">خادم الـ DNS</string>
+    <string name="settings_filter_update_title">قواعد المنع (AdGuard &amp; uBlock)</string>
+    <string name="settings_filter_status_loading">جاري فحص حالة القواعد...</string>
+    <string name="btn_update_filters_now">تحديث قواعد المنع من المستودع الآن</string>
+    <string name="filter_update_success">تم التحديث بنجاح: %1$d نطاق وقاعدة نشطة</string>
+    <string name="filter_update_failed">تعذر الاتصال، يتم استخدام القواعد المحلية</string>
+
+    <string name="settings_battery_title">تحسين البطارية</string>
+    <string name="settings_battery_desc">استثناء التطبيق من قيود النظام لضمان عدم توقفه</string>
+    <string name="btn_fix_battery">استثناء من توفير البطارية</string>
+    <string name="battery_already_optimized">تم الاستثناء بنجاح ✓</string>
+
+    <string name="settings_split_tunnel_title">النفق المقسم (استثناء التطبيقات)</string>
+    <string name="settings_split_tunnel_desc">استثناء تطبيقات محددة (مثل سند أو البنوك) لتتصل بالإنترنت مباشرة وتتجاوز الحماية دون أن تكتشف الـ VPN</string>
+    <string name="btn_select_excluded_apps">اختيار التطبيقات المستثناة</string>
+    <string name="dialog_select_apps_title">اختر التطبيقات المستثناة من النفق</string>
+    <string name="apps_excluded_count">%1$d تطبيق مستثنى حالياً</string>
+    <string name="search_apps_hint">ابحث عن اسم التطبيق...</string>
+    <string name="selected_apps_count">تم تحديد %1$d تطبيق</string>
+    <string name="tab_all_apps">جميع التطبيقات (%1$d)</string>
+    <string name="tab_excluded_apps">المستثناة (%1$d)</string>
+    <string name="empty_excluded_apps">لا توجد تطبيقات مستثناة حالياً</string>
+    <string name="btn_save">حفظ</string>
+    <string name="btn_cancel">إلغاء</string>
+
+    <string name="vpn_permission_required">يلزم منح صلاحية VPN لبدء الاتصال</string>
+    <string name="notification_permission_required">يرجى السماح بالإشعارات لإبقاء الاتصال نشطاً</string>
+</resources>

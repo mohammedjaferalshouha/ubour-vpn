@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/accent_emerald_glow">
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="@color/power_btn_off_bg" />
+            <stroke
+                android:width="4dp"
+                android:color="@color/power_btn_off_ring" />
+            <size
+                android:width="160dp"
+                android:height="160dp" />
+        </shape>
+    </item>
+</ripple>

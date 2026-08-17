@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Light Mode Theme Colors -->
+    <color name="bg_dark">#F8FAFC</color>
+    <color name="bg_card">#FFFFFF</color>
+    <color name="bg_card_border">#E2E8F0</color>
+    <color name="surface_soft">#F1F5F9</color>
+
+    <color name="accent_emerald">#10B981</color>
+    <color name="accent_emerald_glow">#3310B981</color>
+    <color name="accent_cyan">#06B6D4</color>
+    <color name="accent_cyan_glow">#3306B6D4</color>
+    <color name="accent_shield">#3B82F6</color>
+    <color name="accent_amber">#D97706</color>
+    <color name="accent_rose">#E11D48</color>
+
+    <color name="status_connected">#059669</color>
+    <color name="status_connecting">#D97706</color>
+    <color name="status_disconnected">#DC2626</color>
+    <color name="status_disconnected_glow">#22DC2626</color>
+
+    <color name="text_primary">#0F172A</color>
+    <color name="text_secondary">#475569</color>
+    <color name="text_muted">#64748B</color>
+
+    <color name="power_btn_off_bg">#E2E8F0</color>
+    <color name="power_btn_off_ring">#CBD5E1</color>
+    <color name="power_btn_on_bg">#D1FAE5</color>
+    <color name="power_btn_on_ring">#10B981</color>
+</resources>

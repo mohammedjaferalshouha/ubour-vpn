@@ -1,0 +1,39 @@
+# Built application files
+*.apk
+*.aab
+*.exe
+*.dll
+*.pdb
+*.zip
+
+# Android & Gradle
+.gradle/
+build/
+app/build/
+.cxx/
+local.properties
+Captures/
+*.iml
+.idea/
+
+# Keystore files (keep private)
+*.jks
+*.keystore
+keystore.properties
+
+# .NET / Visual Studio
+bin/
+obj/
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+
+# System & OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Analysis & temporary
+graphify-out/
+*.log
