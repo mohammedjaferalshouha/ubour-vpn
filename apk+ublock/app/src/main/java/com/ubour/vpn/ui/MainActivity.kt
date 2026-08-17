@@ -597,15 +597,16 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
 
         lifecycleScope.launch {
-            val result = UpdateService.checkForAppUpdate(applicationContext)
+            val status = UpdateService.checkAllSystemUpstreams()
             dialogBinding.pbUpdate.visibility = View.GONE
+            dialogBinding.layoutUpstreams.visibility = View.VISIBLE
 
-            if (result.hasUpdate) {
-                dialogBinding.tvUpdateTitle.text = getString(R.string.update_available_title)
-                dialogBinding.tvUpdateMsg.text = getString(R.string.update_available_msg, result.latestVersion ?: "")
+            val appResult = status.appUpdate
+            if (appResult.hasUpdate) {
+                dialogBinding.tvUpdateMsg.text = getString(R.string.update_available_msg, appResult.latestVersion ?: "")
                 dialogBinding.btnDownload.visibility = View.VISIBLE
                 dialogBinding.btnDownload.setOnClickListener {
-                    val url = result.downloadUrl ?: result.releasePageUrl
+                    val url = appResult.downloadUrl ?: appResult.releasePageUrl
                     url?.let {
                         val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(it))
                         startActivity(browserIntent)
@@ -613,8 +614,16 @@ class MainActivity : AppCompatActivity() {
                     dialog.dismiss()
                 }
             } else {
-                dialogBinding.tvUpdateMsg.text = getString(R.string.update_current_msg, "1.0.0")
+                dialogBinding.tvUpdateMsg.text = "تطبيق عبور محدث لآخر إصدار (v${UpdateService.CURRENT_APP_VERSION})."
             }
+
+            val upstreamSb = StringBuilder()
+            upstreamSb.append("• قواعد AdGuard & uBlock: نشطة (${AdBlockEngine.totalRules} قاعدة)\n")
+            for (up in status.upstreams) {
+                val stateText = if (up.isUpToDate) "محدث ✓" else "متوفر (${up.latestVersion})"
+                upstreamSb.append("• ${up.name}: v${up.currentVersion} ($stateText)\n")
+            }
+            dialogBinding.tvUpstreamDetails.text = upstreamSb.toString().trimEnd()
         }
     }
 }

@@ -1,20 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/bg_card"
+    android:background="@color/bg_card"
     android:orientation="vertical"
-    android:padding="20dp">
+    android:padding="24dp">
 
-    <!-- Title -->
     <TextView
         android:id="@+id/tvUpdateTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="مركز التحديثات والمستودعات"
+        android:text="@string/action_check_updates"
         android:textColor="@color/text_primary"
-        android:textSize="18sp"
+        android:textSize="20sp"
         android:textStyle="bold" />
 
     <ProgressBar
@@ -22,54 +20,24 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="16dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginBottom="20dp"
         android:indeterminateTint="@color/accent_emerald" />
 
     <TextView
         android:id="@+id/tvUpdateMsg"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="10dp"
         android:text="@string/checking_updates"
         android:textColor="@color/text_secondary"
-        android:textSize="13sp" />
-
-    <!-- Upstreams Container -->
-    <LinearLayout
-        android:id="@+id/layoutUpstreams"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:orientation="vertical"
-        android:visibility="gone"
-        tools:visibility="visible">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="المستودعات والمصادر المعتمدة:"
-            android:textColor="@color/text_primary"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tvUpstreamDetails"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:background="@drawable/bg_mode_pill"
-            android:lineSpacingExtra="4dp"
-            android:padding="10dp"
-            android:textColor="@color/text_secondary"
-            android:textSize="12sp" />
-    </LinearLayout>
+        android:textSize="14sp" />
 
     <Button
         android:id="@+id/btnDownload"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="20dp"
         android:backgroundTint="@color/accent_emerald"
         android:text="@string/btn_download_update"
         android:textColor="#FFFFFF"
