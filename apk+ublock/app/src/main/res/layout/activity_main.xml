@@ -361,14 +361,23 @@
                 android:layout_marginTop="6dp">
 
                 <RadioButton
-                    android:id="@+id/rbOpFull"
+                    android:id="@+id/rbOpWarp"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:checked="true"
-                    android:text="@string/op_mode_full"
+                    android:text="@string/op_mode_warp"
                     android:textColor="@color/text_primary"
                     android:textSize="13sp"
                     android:buttonTint="@color/accent_emerald" />
+
+                <RadioButton
+                    android:id="@+id/rbOpFull"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/op_mode_full"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp"
+                    android:buttonTint="@color/accent_cyan" />
 
                 <RadioButton
                     android:id="@+id/rbOpAdBlockOnly"

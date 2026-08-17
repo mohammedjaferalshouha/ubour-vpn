@@ -9,8 +9,10 @@
     <string name="status_disconnected">غير متصل</string>
     <string name="status_connecting">جاري الاتصال وتفعيل التصفية...</string>
     <string name="status_connected">متصل وآمن</string>
-    <string name="status_connected_full">متصل: تجاوز الحجب + منع الإعلانات والتتبع نشط</string>
+    <string name="status_connected_warp">متصل: نفق Cloudflare WARP السحابي + درع الإعلانات نشط</string>
+    <string name="status_connected_full">متصل: تجاوز الحجب المباشر + منع الإعلانات والتتبع نشط</string>
     <string name="status_connected_adblock_only">متصل: وضع منع الإعلانات والتتبع فقط (توفير طاقة)</string>
+    <string name="status_connected_vless">متصل: خادم VLESS Reality المخصص نشط</string>
     <string name="status_disconnecting">جاري قطع الاتصال...</string>
 
     <string name="status_desc_off">اضغط الزر لبدء تشغيل الخدمة الآمنة ومنع الإعلانات</string>
@@ -24,11 +26,12 @@
     <string name="adblock_switch_label">تفعيل منع وتصفية الإعلانات والتتبع</string>
 
     <string name="op_mode_title">وضع التشغيل الأساسي</string>
-    <string name="op_mode_full">تجاوز الحجب + منع الإعلانات (شامل)</string>
+    <string name="op_mode_warp">نفق كلاود فلير العالمي (Cloudflare WARP + منع الإعلانات)</string>
+    <string name="op_mode_full">تجاوز الحجب المباشر + منع الإعلانات (سرعة 100%)</string>
     <string name="op_mode_adblock_only">منع الإعلانات فقط (خفيف على البطارية)</string>
     <string name="op_mode_vpn_only">تجاوز الحجب فقط (بدون تصفية)</string>
 
-    <string name="mode_title">وضع تجاوز الـ DPI</string>
+    <string name="mode_title">وضع تجاوز الـ DPI المباشر</string>
     <string name="mode_standard">الوضع الافتراضي (Mode 9)</string>
     <string name="mode_fast">وضع التجزئة السريع</string>
     <string name="mode_aggressive">الوضع المتقدم (Fake SNI)</string>
@@ -45,9 +48,9 @@
     <string name="action_check_updates">فحص التحديثات</string>
     <string name="checking_updates">جاري فحص التحديثات من المستودع...</string>
     <string name="update_available_title">تحديث جديد متوفر!</string>
-    <string name="update_available_msg">تم إصدار نسخة جديدة من أداة التجاوز: %1$s</string>
-    <string name="update_current_msg">أداة التجاوز محدثة لآخر إصدار.</string>
-    <string name="btn_download_update">تحميل التحديث</string>
+    <string name="update_available_msg">تم إصدار نسخة جديدة من التطبيق: %1$s</string>
+    <string name="update_current_msg">تطبيق عبور محدث لآخر إصدار (%1$s).</string>
+    <string name="btn_download_update">تحميل وتثبيت التحديث</string>
     <string name="btn_close">إغلاق</string>
 
     <string name="settings_theme_title">مظهر التطبيق (السمة)</string>
@@ -79,6 +82,12 @@
     <string name="empty_excluded_apps">لا توجد تطبيقات مستثناة حالياً</string>
     <string name="btn_save">حفظ</string>
     <string name="btn_cancel">إلغاء</string>
+
+    <string name="settings_vless_title">خادم مخصص (VLESS Reality)</string>
+    <string name="settings_vless_desc">إضافة رابط خادم vless:// مخصص لأقصى درجات التخفي</string>
+    <string name="btn_vless_config">إعداد الخادم المخصص</string>
+    <string name="dialog_vless_title">أدخل رابط الخادم المخصص (vless://)</string>
+    <string name="vless_hint">vless://uuid@host:port?security=reality&amp;sni=...</string>
 
     <string name="vpn_permission_required">يلزم منح صلاحية VPN لبدء الاتصال</string>
     <string name="notification_permission_required">يرجى السماح بالإشعارات لإبقاء الاتصال نشطاً</string>

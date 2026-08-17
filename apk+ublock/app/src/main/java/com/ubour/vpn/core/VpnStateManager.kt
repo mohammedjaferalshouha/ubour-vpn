@@ -12,9 +12,11 @@ enum class VpnState {
 }
 
 enum class AppOperationMode {
-    VPN_AND_ADBLOCK, // Bypass + AdBlock
-    ADBLOCK_ONLY,    // AdBlock Only (Low power)
-    VPN_ONLY         // Bypass Only
+    WARP_AND_ADBLOCK, // Cloudflare WARP + AdBlock (Global Cloud Tunnel)
+    VPN_AND_ADBLOCK,  // Direct ByeDPI Bypass + AdBlock (Direct 100% Line Speed)
+    ADBLOCK_ONLY,     // AdBlock Only (Low power DNS filtering)
+    VPN_ONLY,         // Direct ByeDPI Bypass Only
+    CUSTOM_VLESS      // VLESS Reality / Custom Server
 }
 
 data class TrafficStats(
@@ -33,7 +35,7 @@ object VpnStateManager {
     private val _stats = MutableStateFlow(TrafficStats())
     val stats: StateFlow<TrafficStats> = _stats.asStateFlow()
 
-    private val _currentMode = MutableStateFlow(AppOperationMode.VPN_AND_ADBLOCK)
+    private val _currentMode = MutableStateFlow(AppOperationMode.WARP_AND_ADBLOCK)
     val currentMode: StateFlow<AppOperationMode> = _currentMode.asStateFlow()
 
     fun setOperationMode(mode: AppOperationMode) {

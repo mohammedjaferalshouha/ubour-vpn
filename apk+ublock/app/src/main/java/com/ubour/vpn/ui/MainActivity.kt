@@ -5,38 +5,47 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
-import android.graphics.Color
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.ubour.vpn.R
 import com.ubour.vpn.adblock.AdBlockEngine
 import com.ubour.vpn.adblock.FilterUpdateService
 import com.ubour.vpn.core.AppOperationMode
+import com.ubour.vpn.core.TrafficStats
 import com.ubour.vpn.core.VpnState
 import com.ubour.vpn.core.VpnStateManager
 import com.ubour.vpn.databinding.ActivityMainBinding
 import com.ubour.vpn.databinding.DialogAppsSelectorBinding
 import com.ubour.vpn.databinding.DialogSettingsBinding
 import com.ubour.vpn.databinding.DialogUpdateBinding
-import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.ubour.vpn.service.UbourVpnService
+import com.ubour.vpn.service.UpdateInfo
 import com.ubour.vpn.service.UpdateService
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -73,11 +82,17 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Initialize AdBlock rules in background on app start & auto-check remote updates
+        // Initialize AdBlock rules in background & check online updates
         lifecycleScope.launch {
             AdBlockEngine.initialize(applicationContext)
             if (FilterUpdateService.isUpdateNeeded(applicationContext)) {
                 FilterUpdateService.updateFiltersOnline(applicationContext)
+            }
+            
+            // Auto check app update in background
+            val update = UpdateService.checkForAppUpdate(applicationContext)
+            if (update.hasUpdate) {
+                binding.btnCheckUpdates.setColorFilter(ContextCompat.getColor(this@MainActivity, R.color.accent_amber))
             }
         }
 
@@ -97,11 +112,24 @@ class MainActivity : AppCompatActivity() {
         val isAdBlockEnabled = prefs.getBoolean("adblock_enabled", true)
         binding.switchAdBlock.isChecked = isAdBlockEnabled
 
-        val savedOpMode = prefs.getInt("op_mode", AppOperationMode.VPN_AND_ADBLOCK.ordinal)
+        val savedOpMode = prefs.getInt("op_mode", AppOperationMode.WARP_AND_ADBLOCK.ordinal)
         when (savedOpMode) {
-            AppOperationMode.ADBLOCK_ONLY.ordinal -> binding.rbOpAdBlockOnly.isChecked = true
-            AppOperationMode.VPN_ONLY.ordinal -> binding.rbOpVpnOnly.isChecked = true
-            else -> binding.rbOpFull.isChecked = true
+            AppOperationMode.VPN_AND_ADBLOCK.ordinal -> {
+                binding.rbOpFull.isChecked = true
+                binding.bypassModeCard.visibility = View.VISIBLE
+            }
+            AppOperationMode.ADBLOCK_ONLY.ordinal -> {
+                binding.rbOpAdBlockOnly.isChecked = true
+                binding.bypassModeCard.visibility = View.GONE
+            }
+            AppOperationMode.VPN_ONLY.ordinal -> {
+                binding.rbOpVpnOnly.isChecked = true
+                binding.bypassModeCard.visibility = View.VISIBLE
+            }
+            else -> {
+                binding.rbOpWarp.isChecked = true
+                binding.bypassModeCard.visibility = View.GONE
+            }
         }
 
         binding.switchAdBlock.setOnCheckedChangeListener { _, isChecked ->
@@ -109,12 +137,16 @@ class MainActivity : AppCompatActivity() {
             if (!isChecked) {
                 binding.rbOpVpnOnly.isChecked = true
             } else if (binding.rbOpVpnOnly.isChecked) {
-                binding.rbOpFull.isChecked = true
+                binding.rbOpWarp.isChecked = true
             }
         }
 
         binding.rgOpModes.setOnCheckedChangeListener { _, checkedId ->
             val opMode = when (checkedId) {
+                R.id.rbOpFull -> {
+                    binding.bypassModeCard.visibility = View.VISIBLE
+                    AppOperationMode.VPN_AND_ADBLOCK
+                }
                 R.id.rbOpAdBlockOnly -> {
                     binding.bypassModeCard.visibility = View.GONE
                     AppOperationMode.ADBLOCK_ONLY
@@ -124,8 +156,8 @@ class MainActivity : AppCompatActivity() {
                     AppOperationMode.VPN_ONLY
                 }
                 else -> {
-                    binding.bypassModeCard.visibility = View.VISIBLE
-                    AppOperationMode.VPN_AND_ADBLOCK
+                    binding.bypassModeCard.visibility = View.GONE
+                    AppOperationMode.WARP_AND_ADBLOCK
                 }
             }
             prefs.edit().putInt("op_mode", opMode.ordinal).apply()
@@ -167,9 +199,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun getSelectedOpMode(): AppOperationMode {
         return when {
+            binding.rbOpFull.isChecked -> AppOperationMode.VPN_AND_ADBLOCK
             binding.rbOpAdBlockOnly.isChecked -> AppOperationMode.ADBLOCK_ONLY
             binding.rbOpVpnOnly.isChecked -> AppOperationMode.VPN_ONLY
-            else -> AppOperationMode.VPN_AND_ADBLOCK
+            else -> AppOperationMode.WARP_AND_ADBLOCK
         }
     }
 
@@ -186,12 +219,7 @@ class MainActivity : AppCompatActivity() {
             putExtra(UbourVpnService.EXTRA_OP_MODE, opMode.ordinal)
             putExtra(UbourVpnService.EXTRA_ADBLOCK_ENABLED, isAdBlockEnabled)
         }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
-        }
+        ContextCompat.startForegroundService(this, serviceIntent)
     }
 
     private fun stopVpnService() {
@@ -203,145 +231,101 @@ class MainActivity : AppCompatActivity() {
 
     private fun observeVpnState() {
         lifecycleScope.launch {
-            VpnStateManager.state.collectLatest { state ->
-                updateUiForState(state)
-            }
-        }
-
-        lifecycleScope.launch {
-            VpnStateManager.stats.collectLatest { stats ->
-                if (stats.connectedSince > 0) {
-                    val durationSec = (System.currentTimeMillis() - stats.connectedSince) / 1000
-                    val hours = durationSec / 3600
-                    val minutes = (durationSec % 3600) / 60
-                    val seconds = durationSec % 60
-                    binding.tvDuration.text = String.format(Locale.US, "%02d:%02d:%02d", hours, minutes, seconds)
-
-                    val rxMb = stats.rxBytes / (1024.0 * 1024.0)
-                    binding.tvDownload.text = String.format(Locale.US, "%.1f MB", rxMb)
-
-                    val currentAds = maxOf(stats.blockedAds, AdBlockEngine.blockedAds)
-                    val currentTrackers = maxOf(stats.blockedTrackers, AdBlockEngine.blockedTrackers)
-                    binding.tvBlockedAds.text = currentAds.toString()
-                    binding.tvBlockedTrackers.text = currentTrackers.toString()
-                } else {
-                    binding.tvDuration.text = "00:00:00"
-                    binding.tvDownload.text = "0.0 MB"
-                    binding.tvBlockedAds.text = AdBlockEngine.blockedAds.toString()
-                    binding.tvBlockedTrackers.text = AdBlockEngine.blockedTrackers.toString()
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    VpnStateManager.state.collect { state ->
+                        updateUIForState(state)
+                    }
+                }
+                launch {
+                    VpnStateManager.stats.collect { stats ->
+                        updateStatsUI(stats)
+                    }
                 }
             }
         }
     }
 
-    private fun updateUiForState(state: VpnState) {
+    private fun updateUIForState(state: VpnState) {
+        val emerald = ContextCompat.getColor(this, R.color.accent_emerald)
+        val crimson = ContextCompat.getColor(this, R.color.status_disconnected)
+        val muted = ContextCompat.getColor(this, R.color.power_btn_off_ring)
+        val amber = ContextCompat.getColor(this, R.color.accent_amber)
+
         when (state) {
             VpnState.DISCONNECTED -> {
                 binding.tvStatusTitle.text = getString(R.string.status_disconnected)
-                binding.tvStatusTitle.setTextColor(ContextCompat.getColor(this, R.color.text_primary))
                 binding.tvStatusDesc.text = getString(R.string.status_desc_off)
-                binding.statusDot.backgroundTintList = ColorStateList.valueOf(
-                    ContextCompat.getColor(this, R.color.status_disconnected)
-                )
-
-                binding.btnPower.backgroundTintList = ColorStateList.valueOf(
-                    ContextCompat.getColor(this, R.color.power_btn_off_bg)
-                )
-                binding.btnPower.imageTintList = ColorStateList.valueOf(
-                    ContextCompat.getColor(this, R.color.text_muted)
-                )
+                binding.statusDot.backgroundTintList = ColorStateList.valueOf(crimson)
                 binding.powerGlow.visibility = View.INVISIBLE
+                binding.btnPower.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.power_btn_off_bg))
+                binding.btnPower.setColorFilter(muted)
                 binding.statsCard.visibility = View.GONE
-                setControlsEnabled(true)
-                updateSwitchColorForState(state)
+                setModeControlsEnabled(true)
             }
             VpnState.CONNECTING -> {
                 binding.tvStatusTitle.text = getString(R.string.status_connecting)
-                binding.tvStatusTitle.setTextColor(ContextCompat.getColor(this, R.color.status_connecting))
-                binding.statusDot.backgroundTintList = ColorStateList.valueOf(
-                    ContextCompat.getColor(this, R.color.status_connecting)
-                )
-                setControlsEnabled(false)
+                binding.tvStatusDesc.text = getString(R.string.status_desc_off)
+                binding.statusDot.backgroundTintList = ColorStateList.valueOf(amber)
+                binding.powerGlow.visibility = View.VISIBLE
+                binding.powerGlow.backgroundTintList = ColorStateList.valueOf(amber)
+                binding.btnPower.setColorFilter(amber)
+                binding.statsCard.visibility = View.GONE
+                setModeControlsEnabled(false)
             }
             VpnState.CONNECTED -> {
-                val currentOpMode = VpnStateManager.currentMode.value
-                val titleRes = when (currentOpMode) {
-                    AppOperationMode.VPN_AND_ADBLOCK -> R.string.status_connected_full
-                    AppOperationMode.ADBLOCK_ONLY -> R.string.status_connected_adblock_only
-                    AppOperationMode.VPN_ONLY -> R.string.status_connected
+                val opMode = VpnStateManager.currentMode.value
+                val statusText = when (opMode) {
+                    AppOperationMode.WARP_AND_ADBLOCK -> getString(R.string.status_connected_warp)
+                    AppOperationMode.VPN_AND_ADBLOCK -> getString(R.string.status_connected_full)
+                    AppOperationMode.ADBLOCK_ONLY -> getString(R.string.status_connected_adblock_only)
+                    AppOperationMode.VPN_ONLY -> getString(R.string.status_connected)
+                    AppOperationMode.CUSTOM_VLESS -> getString(R.string.status_connected_vless)
                 }
-
-                binding.tvStatusTitle.text = getString(titleRes)
-                binding.tvStatusTitle.setTextColor(ContextCompat.getColor(this, R.color.status_connected))
+                binding.tvStatusTitle.text = statusText
                 binding.tvStatusDesc.text = getString(R.string.status_desc_on)
-                binding.statusDot.backgroundTintList = ColorStateList.valueOf(
-                    ContextCompat.getColor(this, R.color.status_connected)
-                )
-
-                binding.btnPower.backgroundTintList = ColorStateList.valueOf(
-                    ContextCompat.getColor(this, R.color.power_btn_on_bg)
-                )
-                binding.btnPower.imageTintList = ColorStateList.valueOf(
-                    ContextCompat.getColor(this, R.color.accent_emerald)
-                )
+                binding.statusDot.backgroundTintList = ColorStateList.valueOf(emerald)
                 binding.powerGlow.visibility = View.VISIBLE
+                binding.powerGlow.backgroundTintList = ColorStateList.valueOf(crimson)
+                binding.btnPower.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.power_btn_on_bg))
+                binding.btnPower.setColorFilter(emerald)
                 binding.statsCard.visibility = View.VISIBLE
-                setControlsEnabled(false)
-                updateSwitchColorForState(state)
+                setModeControlsEnabled(false)
             }
             VpnState.DISCONNECTING -> {
                 binding.tvStatusTitle.text = getString(R.string.status_disconnecting)
-                binding.tvStatusTitle.setTextColor(ContextCompat.getColor(this, R.color.status_connecting))
+                binding.statusDot.backgroundTintList = ColorStateList.valueOf(amber)
                 binding.powerGlow.visibility = View.INVISIBLE
+                binding.btnPower.setColorFilter(amber)
+                setModeControlsEnabled(false)
             }
         }
     }
 
-    private fun updateSwitchColorForState(state: VpnState) {
-        if (state == VpnState.CONNECTED) {
-            // Glowing Coral/Red when connected to match power button halo
-            val coralRed = ContextCompat.getColor(this, R.color.status_disconnected)
-            val thumbList = ColorStateList(
-                arrayOf(
-                    intArrayOf(android.R.attr.state_checked),
-                    intArrayOf(-android.R.attr.state_checked)
-                ),
-                intArrayOf(coralRed, ContextCompat.getColor(this, R.color.text_muted))
-            )
-            val trackList = ColorStateList(
-                arrayOf(
-                    intArrayOf(android.R.attr.state_checked),
-                    intArrayOf(-android.R.attr.state_checked)
-                ),
-                intArrayOf(coralRed and 0x7FFFFFFF, ContextCompat.getColor(this, R.color.surface_soft))
-            )
-            binding.switchAdBlock.thumbTintList = thumbList
-            binding.switchAdBlock.trackTintList = trackList
-        } else {
-            // Emerald Green before connection
-            val emerald = ContextCompat.getColor(this, R.color.accent_emerald)
-            val thumbList = ColorStateList(
-                arrayOf(
-                    intArrayOf(android.R.attr.state_checked),
-                    intArrayOf(-android.R.attr.state_checked)
-                ),
-                intArrayOf(emerald, ContextCompat.getColor(this, R.color.text_muted))
-            )
-            val trackList = ColorStateList(
-                arrayOf(
-                    intArrayOf(android.R.attr.state_checked),
-                    intArrayOf(-android.R.attr.state_checked)
-                ),
-                intArrayOf(emerald and 0x7FFFFFFF, ContextCompat.getColor(this, R.color.surface_soft))
-            )
-            binding.switchAdBlock.thumbTintList = thumbList
-            binding.switchAdBlock.trackTintList = trackList
+    private fun updateStatsUI(stats: TrafficStats) {
+        val elapsedSec = if (stats.connectedSince > 0) (System.currentTimeMillis() - stats.connectedSince) / 1000 else 0
+        val hours = elapsedSec / 3600
+        val mins = (elapsedSec % 3600) / 60
+        val secs = elapsedSec % 60
+        binding.tvDuration.text = String.format(Locale.US, "%02d:%02d:%02d", hours, mins, secs)
+
+        binding.tvDownload.text = formatBytes(stats.rxBytes)
+        binding.tvBlockedAds.text = stats.blockedAds.toString()
+        binding.tvBlockedTrackers.text = stats.blockedTrackers.toString()
+    }
+
+    private fun formatBytes(bytes: Long): String {
+        return when {
+            bytes >= 1024 * 1024 * 1024 -> String.format(Locale.US, "%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0))
+            bytes >= 1024 * 1024 -> String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024.0))
+            bytes >= 1024 -> String.format(Locale.US, "%.1f KB", bytes / 1024.0)
+            else -> "$bytes B"
         }
     }
 
-    private fun setControlsEnabled(enabled: Boolean) {
-        // Keep switchAdBlock visually bright and active
-        binding.switchAdBlock.isClickable = enabled
+    private fun setModeControlsEnabled(enabled: Boolean) {
+        binding.switchAdBlock.isEnabled = enabled
+        binding.rbOpWarp.isEnabled = enabled
         binding.rbOpFull.isEnabled = enabled
         binding.rbOpAdBlockOnly.isEnabled = enabled
         binding.rbOpVpnOnly.isEnabled = enabled
@@ -358,7 +342,7 @@ class MainActivity : AppCompatActivity() {
 
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-        // Theme Options (Dark / Light / System Default)
+        // Theme Options
         val themeOptions = listOf(
             getString(R.string.theme_system),
             getString(R.string.theme_dark),
@@ -423,7 +407,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Split Tunneling (Excluded Apps)
+        // Split Tunneling
         fun updateExcludedAppsLabel() {
             val excludedCount = (prefs.getStringSet("excluded_apps", emptySet()) ?: emptySet()).size
             dialogBinding.tvSplitTunnelStatus.text = if (excludedCount > 0) {
@@ -518,9 +502,13 @@ class MainActivity : AppCompatActivity() {
             dialogBinding.btnTabAll.text = getString(R.string.tab_all_apps, totalCount)
             dialogBinding.btnTabExcluded.text = getString(R.string.tab_excluded_apps, excludedCount)
 
-            val showEmpty = (currentMode == AppFilterMode.EXCLUDED_ONLY && excludedCount == 0)
-            dialogBinding.tvEmptyList.visibility = if (showEmpty) View.VISIBLE else View.GONE
-            dialogBinding.rvApps.visibility = if (showEmpty) View.GONE else View.VISIBLE
+            if (currentMode == AppFilterMode.EXCLUDED_ONLY && excludedCount == 0) {
+                dialogBinding.tvEmptyList.visibility = View.VISIBLE
+                dialogBinding.rvApps.visibility = View.GONE
+            } else {
+                dialogBinding.tvEmptyList.visibility = View.GONE
+                dialogBinding.rvApps.visibility = View.VISIBLE
+            }
         }
 
         val adapter = AppsAdapter(installedApps) { excludedCount, totalCount ->
@@ -553,30 +541,28 @@ class MainActivity : AppCompatActivity() {
         dialogBinding.btnTabAll.setOnClickListener { setTab(AppFilterMode.ALL) }
         dialogBinding.btnTabExcluded.setOnClickListener { setTab(AppFilterMode.EXCLUDED_ONLY) }
 
-        dialogBinding.etSearchApps.addTextChangedListener(object : android.text.TextWatcher {
+        dialogBinding.etSearchApps.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                adapter.filter(s?.toString() ?: "")
-                dialogBinding.ivClearSearch.visibility = if (s.isNullOrEmpty()) View.GONE else View.VISIBLE
-                updateUI(adapter.getSelectedCount(), adapter.getTotalCount())
+                adapter.filter(s.toString())
+                if (adapter.itemCount == 0) {
+                    dialogBinding.tvEmptyList.visibility = View.VISIBLE
+                    dialogBinding.rvApps.visibility = View.GONE
+                } else {
+                    dialogBinding.tvEmptyList.visibility = View.GONE
+                    dialogBinding.rvApps.visibility = View.VISIBLE
+                }
             }
-            override fun afterTextChanged(s: android.text.Editable?) {}
+            override fun afterTextChanged(s: Editable?) {}
         })
 
-        dialogBinding.ivClearSearch.setOnClickListener {
-            dialogBinding.etSearchApps.setText("")
-        }
-
-        dialogBinding.btnCancelApps.setOnClickListener {
-            dialog.dismiss()
-        }
-
+        dialogBinding.btnCancelApps.setOnClickListener { dialog.dismiss() }
         dialogBinding.btnSaveApps.setOnClickListener {
-            val selectedSet = adapter.getSelectedPackages()
-            prefs.edit().putStringSet("excluded_apps", selectedSet).commit()
+            val selectedPackages = adapter.getSelectedPackages()
+            prefs.edit().putStringSet("excluded_apps", selectedPackages).apply()
             onAppsUpdated()
-            Toast.makeText(this, getString(R.string.apps_excluded_count, selectedSet.size), Toast.LENGTH_SHORT).show()
             dialog.dismiss()
+            Toast.makeText(this, getString(R.string.apps_excluded_count, selectedPackages.size), Toast.LENGTH_SHORT).show()
         }
 
         dialog.show()
@@ -611,7 +597,7 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
 
         lifecycleScope.launch {
-            val result = UpdateService.checkEngineUpdate()
+            val result = UpdateService.checkForAppUpdate(applicationContext)
             dialogBinding.pbUpdate.visibility = View.GONE
 
             if (result.hasUpdate) {
@@ -619,14 +605,15 @@ class MainActivity : AppCompatActivity() {
                 dialogBinding.tvUpdateMsg.text = getString(R.string.update_available_msg, result.latestVersion ?: "")
                 dialogBinding.btnDownload.visibility = View.VISIBLE
                 dialogBinding.btnDownload.setOnClickListener {
-                    result.releaseUrl?.let { url ->
-                        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    val url = result.downloadUrl ?: result.releasePageUrl
+                    url?.let {
+                        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(it))
                         startActivity(browserIntent)
                     }
                     dialog.dismiss()
                 }
             } else {
-                dialogBinding.tvUpdateMsg.text = getString(R.string.update_current_msg)
+                dialogBinding.tvUpdateMsg.text = getString(R.string.update_current_msg, "1.0.0")
             }
         }
     }

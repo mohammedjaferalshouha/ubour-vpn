@@ -1,6 +1,7 @@
 package com.ubour.vpn.service
 
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.net.VpnService
@@ -13,9 +14,11 @@ import com.ubour.vpn.UbourApplication
 import com.ubour.vpn.adblock.AdBlockEngine
 import com.ubour.vpn.adblock.DnsFilterServer
 import com.ubour.vpn.core.AppOperationMode
+import com.ubour.vpn.core.SingboxManager
 import com.ubour.vpn.core.VpnState
 import com.ubour.vpn.core.VpnStateManager
 import com.ubour.vpn.ui.MainActivity
+import com.ubour.vpn.warp.WarpManager
 import io.github.dovecoteescapee.byedpi.core.ByeDpiProxy
 import io.github.dovecoteescapee.byedpi.core.TProxyService
 import kotlinx.coroutines.*
@@ -47,8 +50,8 @@ class UbourVpnService : VpnService() {
 
         val mode = intent?.getIntExtra(EXTRA_MODE, 1) ?: 1
         val dnsServer = intent?.getStringExtra(EXTRA_DNS) ?: "94.140.14.14" // Default to AdGuard DNS
-        val opModeOrdinal = intent?.getIntExtra(EXTRA_OP_MODE, AppOperationMode.VPN_AND_ADBLOCK.ordinal) ?: AppOperationMode.VPN_AND_ADBLOCK.ordinal
-        val opMode = AppOperationMode.values().getOrElse(opModeOrdinal) { AppOperationMode.VPN_AND_ADBLOCK }
+        val opModeOrdinal = intent?.getIntExtra(EXTRA_OP_MODE, AppOperationMode.WARP_AND_ADBLOCK.ordinal) ?: AppOperationMode.WARP_AND_ADBLOCK.ordinal
+        val opMode = AppOperationMode.values().getOrElse(opModeOrdinal) { AppOperationMode.WARP_AND_ADBLOCK }
         val isAdBlockEnabled = intent?.getBooleanExtra(EXTRA_ADBLOCK_ENABLED, true) ?: true
 
         serviceScope.launch {
@@ -72,18 +75,57 @@ class UbourVpnService : VpnService() {
                 startForegroundNotification(getString(R.string.status_connecting))
 
                 // 1. Initialize AdBlock Engine if enabled
-                if (isAdBlockEnabled || opMode == AppOperationMode.ADBLOCK_ONLY || opMode == AppOperationMode.VPN_AND_ADBLOCK) {
+                val needsAdBlock = isAdBlockEnabled || opMode == AppOperationMode.ADBLOCK_ONLY || 
+                                  opMode == AppOperationMode.WARP_AND_ADBLOCK || opMode == AppOperationMode.VPN_AND_ADBLOCK
+
+                if (needsAdBlock) {
                     AdBlockEngine.initialize(applicationContext)
                     dnsFilterServer = DnsFilterServer(upstreamDns = dnsServer).apply {
                         start()
                     }
                 }
 
-                // 2. Start Proxy (Mode 0 for AdBlock Only direct passthrough, Mode 1/2/3 for DPI bypass)
-                val effectiveProxyMode = if (opMode == AppOperationMode.ADBLOCK_ONLY) 0 else bypassMode
-                proxyJob = serviceScope.launch(Dispatchers.IO) {
-                    val res = byeDpiProxy.startProxy(mode = effectiveProxyMode, ip = "127.0.0.1", port = 1080)
-                    Log.i(TAG, "ByeDpi proxy loop terminated with code $res")
+                // 2. Determine target proxy port and start appropriate engine
+                var socksPort = 1080
+
+                when (opMode) {
+                    AppOperationMode.WARP_AND_ADBLOCK -> {
+                        socksPort = SingboxManager.SOCKS_PORT
+                        val warpConfig = WarpManager.getOrRegisterConfig(applicationContext)
+                        val started = SingboxManager.startWarp(applicationContext, warpConfig)
+                        if (!started) {
+                            Log.e(TAG, "Failed to start Sing-box WARP, fallback to ByeDPI")
+                            socksPort = 1080
+                            proxyJob = serviceScope.launch(Dispatchers.IO) {
+                                byeDpiProxy.startProxy(mode = bypassMode, ip = "127.0.0.1", port = 1080)
+                            }
+                        }
+                    }
+                    AppOperationMode.CUSTOM_VLESS -> {
+                        socksPort = SingboxManager.SOCKS_PORT
+                        val prefs = getSharedPreferences("ubour_settings", Context.MODE_PRIVATE)
+                        val vlessUrl = prefs.getString("custom_vless_url", "") ?: ""
+                        val started = SingboxManager.startVless(applicationContext, vlessUrl)
+                        if (!started) {
+                            Log.e(TAG, "Failed to start Sing-box VLESS, fallback to ByeDPI")
+                            socksPort = 1080
+                            proxyJob = serviceScope.launch(Dispatchers.IO) {
+                                byeDpiProxy.startProxy(mode = bypassMode, ip = "127.0.0.1", port = 1080)
+                            }
+                        }
+                    }
+                    AppOperationMode.VPN_AND_ADBLOCK, AppOperationMode.VPN_ONLY -> {
+                        socksPort = 1080
+                        proxyJob = serviceScope.launch(Dispatchers.IO) {
+                            byeDpiProxy.startProxy(mode = bypassMode, ip = "127.0.0.1", port = 1080)
+                        }
+                    }
+                    AppOperationMode.ADBLOCK_ONLY -> {
+                        socksPort = 1080
+                        proxyJob = serviceScope.launch(Dispatchers.IO) {
+                            byeDpiProxy.startProxy(mode = 0, ip = "127.0.0.1", port = 1080)
+                        }
+                    }
                 }
                 delay(300)
 
@@ -92,7 +134,7 @@ class UbourVpnService : VpnService() {
                 tunnel:
                   mtu: 1500
                 socks5:
-                  port: 1080
+                  port: $socksPort
                   address: 127.0.0.1
                   udp: 'tcp'
                 misc:
@@ -110,8 +152,8 @@ class UbourVpnService : VpnService() {
                     addAddress("10.10.10.10", 32)
                     addRoute("0.0.0.0", 0)
 
-                    // Set DNS server (AdGuard is strictly primary when AdBlock is enabled)
-                    if (isAdBlockEnabled || opMode == AppOperationMode.ADBLOCK_ONLY || opMode == AppOperationMode.VPN_AND_ADBLOCK) {
+                    // Set DNS server
+                    if (needsAdBlock) {
                         addDnsServer("94.140.14.14") // AdGuard DNS Primary
                         addDnsServer("94.140.14.15") // AdGuard DNS Secondary
                         if (dnsServer.isNotBlank() && dnsServer != "94.140.14.14" && dnsServer != "1.1.1.1") {
@@ -132,7 +174,7 @@ class UbourVpnService : VpnService() {
                     addDisallowedApplication(applicationContext.packageName)
 
                     // Add user-selected excluded apps (Split Tunneling)
-                    val prefs = this@UbourVpnService.getSharedPreferences("ubour_settings", android.content.Context.MODE_PRIVATE)
+                    val prefs = this@UbourVpnService.getSharedPreferences("ubour_settings", Context.MODE_PRIVATE)
                     val excludedApps = prefs.getStringSet("excluded_apps", null) ?: emptySet<String>()
                     for (pkg in excludedApps) {
                         try {
@@ -150,15 +192,17 @@ class UbourVpnService : VpnService() {
 
                 // 5. Start TProxyService (hev-socks5-tunnel)
                 TProxyService.TProxyStartService(configFile.absolutePath, pfd.fd)
-                Log.i(TAG, "TProxyService started")
+                Log.i(TAG, "TProxyService started on port $socksPort")
 
                 startTime = System.currentTimeMillis()
                 VpnStateManager.updateState(VpnState.CONNECTED)
                 
                 val statusMsg = when (opMode) {
+                    AppOperationMode.WARP_AND_ADBLOCK -> getString(R.string.status_connected_warp)
                     AppOperationMode.VPN_AND_ADBLOCK -> getString(R.string.status_connected_full)
                     AppOperationMode.ADBLOCK_ONLY -> getString(R.string.status_connected_adblock_only)
                     AppOperationMode.VPN_ONLY -> getString(R.string.status_connected)
+                    AppOperationMode.CUSTOM_VLESS -> getString(R.string.status_connected_vless)
                 }
                 startForegroundNotification(statusMsg)
 
@@ -183,6 +227,12 @@ class UbourVpnService : VpnService() {
                 dnsFilterServer = null
             } catch (e: Exception) {
                 Log.e(TAG, "Error stopping DNS filter server", e)
+            }
+
+            try {
+                SingboxManager.stop()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error stopping Sing-box", e)
             }
 
             try {
