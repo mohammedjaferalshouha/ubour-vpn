@@ -14,6 +14,15 @@
 
 **[English (الإنجليزية)](README.md) | [العربية](README.ar.md)**
 
+<br/>
+
+### ⚡ أزرار التحميل المباشر الفوري (بنقرة واحدة)
+
+[![تحميل للأندرويد APK](https://img.shields.io/badge/تحميل_مباشر-نسخة_الأندرويد_APK-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-VPN-Release.apk)
+[![تحميل لويندوز 64 بت](https://img.shields.io/badge/تحميل_مباشر-ويندوز_64_بت_x64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x64.zip)
+[![تحميل لويندوز 32 بت](https://img.shields.io/badge/تحميل_مباشر-ويندوز_32_بت_x86-5C2D91?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x86.zip)
+[![أرشيف جميع الإصدارات](https://img.shields.io/badge/أرشيف_الإصدارات-كافة_النسخ_السابقة-orange?style=for-the-badge&logo=github&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases)
+
 </div>
 
 ---
@@ -81,13 +90,14 @@
 
 ---
 
-## 📦 التنزيل والإصدارات الجاهزة
+## 📦 جدول التحميل المباشر والحزم
 
-| المنصة | اسم الحزمة | المعمارية | الوصف |
+| المنصة | رابط التحميل المباشر | المعمارية | النوع |
 | :--- | :--- | :--- | :--- |
-| **أندرويد** | `Ubour-VPN-Release.apk` | `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` | حزمة التثبيت الرسمية الموقعة |
-| **ويندوز 64 بت** | `Ubour-windows-x64.zip` | `x64` | حزمة جاهزة للتشغيل (Win 10/11) |
-| **ويندوز 32 بت** | `Ubour-windows-x86.zip` | `x86` | حزمة جاهزة للتشغيل (Win 7/8/10/11) |
+| **تطبيق أندرويد** | [📥 **تحميل الحزمة APK**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-VPN-Release.apk) | `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` | حزمة التثبيت الرسمية الموقعة |
+| **ويندوز 64 بت** | [📥 **تحميل نسخة 64 بت**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x64.zip) | `x64` | حزمة جاهزة للتشغيل (Win 10/11) |
+| **ويندوز 32 بت** | [📥 **تحميل نسخة 32 بت**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x86.zip) | `x86` | حزمة جاهزة للتشغيل (Win 7/8/10/11) |
+| **الإصدارات السابقة** | [📚 **أرشيف كافة الإصدارات**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases) | جميع المنصات | الأرشيف الكامل للإصدارات السابقة |
 
 ---
 

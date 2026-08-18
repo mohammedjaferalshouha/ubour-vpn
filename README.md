@@ -14,6 +14,15 @@
 
 **[English](README.md) | [العربية (Arabic)](README.ar.md)**
 
+<br/>
+
+### ⚡ One-Click Direct Downloads (تحميل مباشر بنقرة واحدة)
+
+[![Download Android APK](https://img.shields.io/badge/Download-Android%20APK%20(Universal)-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-VPN-Release.apk)
+[![Download Windows x64](https://img.shields.io/badge/Download-Windows%20x64%20(64--bit)-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x64.zip)
+[![Download Windows x86](https://img.shields.io/badge/Download-Windows%20x86%20(32--bit)-5C2D91?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x86.zip)
+[![All Releases & Archive](https://img.shields.io/badge/All%20Releases-Previous%20Versions%20Archive-orange?style=for-the-badge&logo=github&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases)
+
 </div>
 
 ---
@@ -81,13 +90,14 @@ Unlike conventional VPN services that route all your internet traffic through ex
 
 ---
 
-## 📦 Releases & Downloads
+## 📦 Direct Downloads & Packages Table
 
-| Platform | Package | Architecture | Description |
+| Platform | Direct Download Link | Architecture | Type |
 | :--- | :--- | :--- | :--- |
-| **Android** | `Ubour-VPN-Release.apk` | `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` | Official Signed Release APK |
-| **Windows x64** | `Ubour-windows-x64.zip` | `x64` (64-bit) | Standalone Executable (Win 10/11) |
-| **Windows x86** | `Ubour-windows-x86.zip` | `x86` (32-bit) | Standalone Executable (Win 7/8/10/11) |
+| **Android APK** | [📥 **Download APK**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-VPN-Release.apk) | `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` | Universal Signed Release APK |
+| **Windows x64** | [📥 **Download Win x64**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x64.zip) | `x64` (64-bit) | Standalone Executable (Win 10/11) |
+| **Windows x86** | [📥 **Download Win x86**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x86.zip) | `x86` (32-bit) | Standalone Executable (Win 7/8/10/11) |
+| **Previous Releases** | [📚 **View All Releases**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases) | All Platforms | Full Release Archive & History |
 
 ---
 
