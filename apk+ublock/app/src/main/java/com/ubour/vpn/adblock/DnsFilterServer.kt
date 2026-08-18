@@ -9,7 +9,7 @@ import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicBoolean
 
 class DnsFilterServer(
-    private var upstreamDns: String = "1.1.1.1",
+    private var upstreamDns: String = "8.8.8.8",
     private val upstreamPort: Int = 53,
     private val localPort: Int = 5353,
     private val socketProtector: ((DatagramSocket) -> Boolean)? = null

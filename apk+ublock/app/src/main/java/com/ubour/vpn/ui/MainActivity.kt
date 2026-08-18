@@ -271,7 +271,7 @@ class MainActivity : AppCompatActivity() {
         val bypassMode = getSelectedBypassMode()
         val opMode = getSelectedOpMode()
         val isAdBlockEnabled = binding.switchAdBlock.isChecked
-        val dns = prefs.getString("selected_dns", "1.1.1.1") ?: "1.1.1.1"
+        val dns = prefs.getString("selected_dns", "8.8.8.8") ?: "8.8.8.8"
 
         val serviceIntent = Intent(this, UbourVpnService::class.java).apply {
             action = UbourVpnService.ACTION_START
@@ -435,17 +435,17 @@ class MainActivity : AppCompatActivity() {
 
         // DNS Options
         val dnsOptions = listOf(
-            "Cloudflare (1.1.1.1) - الافتراضي السريع",
+            "Google DNS (8.8.8.8) - القياسي السريع",
             "AdGuard DNS (94.140.14.14) - حماية إضافية",
-            "Google (8.8.8.8)",
-            "Quad9 (9.9.9.9)"
+            "Quad9 (9.9.9.9) - حماية الخصوصية",
+            "Cloudflare (1.1.1.1)"
         )
-        val dnsIps = listOf("1.1.1.1", "94.140.14.14", "8.8.8.8", "9.9.9.9")
+        val dnsIps = listOf("8.8.8.8", "94.140.14.14", "9.9.9.9", "1.1.1.1")
 
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, dnsOptions)
         dialogBinding.spDns.adapter = adapter
 
-        val currentDns = prefs.getString("selected_dns", "1.1.1.1")
+        val currentDns = prefs.getString("selected_dns", "8.8.8.8")
         val selectedIdx = dnsIps.indexOf(currentDns).coerceAtLeast(0)
         dialogBinding.spDns.setSelection(selectedIdx)
 

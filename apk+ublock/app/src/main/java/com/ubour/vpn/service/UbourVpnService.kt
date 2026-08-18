@@ -49,7 +49,7 @@ class UbourVpnService : VpnService() {
         }
 
         val mode = intent?.getIntExtra(EXTRA_MODE, 1) ?: 1
-        val dnsServer = intent?.getStringExtra(EXTRA_DNS) ?: "1.1.1.1"
+        val dnsServer = intent?.getStringExtra(EXTRA_DNS) ?: DEFAULT_DNS
         val opModeOrdinal = intent?.getIntExtra(EXTRA_OP_MODE, AppOperationMode.WARP_AND_ADBLOCK.ordinal) ?: AppOperationMode.WARP_AND_ADBLOCK.ordinal
         val opMode = AppOperationMode.values().getOrElse(opModeOrdinal) { AppOperationMode.WARP_AND_ADBLOCK }
         val isAdBlockEnabled = intent?.getBooleanExtra(EXTRA_ADBLOCK_ENABLED, true) ?: true
@@ -75,12 +75,12 @@ class UbourVpnService : VpnService() {
                 startForegroundNotification(getString(R.string.status_connecting))
 
                 // Determine effective DNS:
-                // In WARP_AND_ADBLOCK mode, 1.1.1.1 is used.
-                // In other modes, use the configured DNS server or fallback to 1.1.1.1
+                // In WARP_AND_ADBLOCK mode, 1.1.1.1 is used for WARP.
+                // In other modes, use the configured DNS server or fallback to standard DEFAULT_DNS (8.8.8.8)
                 val effectiveDns = if (opMode == AppOperationMode.WARP_AND_ADBLOCK) {
                     "1.1.1.1"
                 } else {
-                    if (dnsServer.isNotBlank()) dnsServer else "1.1.1.1"
+                    if (dnsServer.isNotBlank()) dnsServer else DEFAULT_DNS
                 }
 
                 // 1. Initialize AdBlock Engine & DNS Filter Server if enabled
@@ -212,10 +212,13 @@ class UbourVpnService : VpnService() {
                     addRoutesExcludingSubnets(this, effectiveDns)
 
                     addDnsServer(effectiveDns)
-                    if (effectiveDns != "1.0.0.1") {
-                        addDnsServer("1.0.0.1")
+                    val secondaryDns = if (opMode == AppOperationMode.WARP_AND_ADBLOCK) {
+                        "1.0.0.1"
                     } else {
-                        addDnsServer("1.1.1.1")
+                        SECONDARY_DNS_MAP[effectiveDns] ?: (if (effectiveDns != "8.8.4.4") "8.8.4.4" else "8.8.8.8")
+                    }
+                    if (secondaryDns != effectiveDns) {
+                        addDnsServer(secondaryDns)
                     }
 
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -482,5 +485,13 @@ class UbourVpnService : VpnService() {
         const val EXTRA_DNS = "extra_dns"
         const val EXTRA_OP_MODE = "extra_op_mode"
         const val EXTRA_ADBLOCK_ENABLED = "extra_adblock_enabled"
+        const val DEFAULT_DNS = "8.8.8.8"
+
+        val SECONDARY_DNS_MAP = mapOf(
+            "8.8.8.8" to "8.8.4.4",
+            "94.140.14.14" to "94.140.15.15",
+            "9.9.9.9" to "149.112.112.112",
+            "1.1.1.1" to "1.0.0.1"
+        )
     }
 }
