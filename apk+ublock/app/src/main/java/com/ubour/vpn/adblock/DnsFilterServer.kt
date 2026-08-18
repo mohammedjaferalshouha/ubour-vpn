@@ -11,7 +11,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 class DnsFilterServer(
     private var upstreamDns: String = "1.1.1.1",
     private val upstreamPort: Int = 53,
-    private val localPort: Int = 5353
+    private val localPort: Int = 5353,
+    private val socketProtector: ((DatagramSocket) -> Boolean)? = null
 ) {
     private val isRunning = AtomicBoolean(false)
     private var serverSocket: DatagramSocket? = null
@@ -67,7 +68,10 @@ class DnsFilterServer(
             }
 
             // Forward to upstream DNS
-            val upstreamSocket = DatagramSocket().apply { soTimeout = 3000 }
+            val upstreamSocket = DatagramSocket().apply {
+                socketProtector?.invoke(this)
+                soTimeout = 3000
+            }
             val upstreamPacket = DatagramPacket(data, data.size, InetAddress.getByName(upstreamDns), upstreamPort)
             upstreamSocket.send(upstreamPacket)
 

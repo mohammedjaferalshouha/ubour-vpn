@@ -11,7 +11,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:padding="20dp"
+        android:paddingBottom="40dp">
 
         <!-- Top Header -->
         <LinearLayout
@@ -50,6 +51,17 @@
                     android:textColor="@color/text_muted"
                     android:textSize="11sp" />
             </LinearLayout>
+
+            <!-- Theme Switcher Button -->
+            <ImageButton
+                android:id="@+id/btnTheme"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_mode_pill"
+                android:src="@drawable/ic_theme"
+                app:tint="@color/text_primary"
+                android:contentDescription="@string/action_toggle_theme"
+                android:layout_marginEnd="8dp" />
 
             <!-- Check Updates Button -->
             <ImageButton
@@ -307,10 +319,11 @@
                 android:orientation="horizontal">
 
                 <ImageView
+                    android:id="@+id/ivShieldIcon"
                     android:layout_width="28dp"
                     android:layout_height="28dp"
                     android:src="@drawable/ic_shield"
-                    app:tint="@color/accent_shield"
+                    app:tint="@color/cloudflare_orange"
                     android:contentDescription="@string/section_adblock_title" />
 
                 <LinearLayout
@@ -342,7 +355,9 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:checked="true"
-                    app:useMaterialThemeColors="true" />
+                    app:useMaterialThemeColors="false"
+                    app:thumbTint="@color/switch_thumb_selector"
+                    app:trackTint="@color/switch_track_selector" />
             </LinearLayout>
 
             <TextView
@@ -368,7 +383,7 @@
                     android:text="@string/op_mode_warp"
                     android:textColor="@color/text_primary"
                     android:textSize="13sp"
-                    android:buttonTint="@color/accent_emerald" />
+                    android:buttonTint="@color/cloudflare_orange" />
 
                 <RadioButton
                     android:id="@+id/rbOpFull"
@@ -399,14 +414,15 @@
             </RadioGroup>
         </LinearLayout>
 
-        <!-- DPI Bypass Mode Selector Card -->
+        <!-- DPI Bypass Mode Selector Card (Shown when Bypass mode is selected) -->
         <LinearLayout
             android:id="@+id/bypassModeCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/bg_card"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="16dp"
+            android:visibility="gone">
 
             <TextView
                 android:layout_width="wrap_content"

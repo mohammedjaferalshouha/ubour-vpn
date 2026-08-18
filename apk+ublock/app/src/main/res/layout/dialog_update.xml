@@ -65,11 +65,40 @@
             android:textSize="12sp" />
     </LinearLayout>
 
+    <ProgressBar
+        android:id="@+id/progressBarUpdate"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:indeterminate="true"
+        android:indeterminateTint="@color/accent_emerald"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/tvUpdateProgressStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="center"
+        android:textColor="@color/text_muted"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
     <Button
-        android:id="@+id/btnDownload"
+        android:id="@+id/btnUpdateFilters"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
+        android:backgroundTint="@color/surface_soft"
+        android:text="@string/btn_update_filters_now"
+        android:textColor="@color/text_primary" />
+
+    <Button
+        android:id="@+id/btnDownloadUpdate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
         android:backgroundTint="@color/accent_emerald"
         android:text="@string/btn_download_update"
         android:textColor="#FFFFFF"

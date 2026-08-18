@@ -11,11 +11,12 @@
     <color name="accent_cyan">#06B6D4</color>
     <color name="accent_cyan_glow">#3306B6D4</color>
     <color name="accent_shield">#3B82F6</color>
-    <color name="accent_amber">#D97706</color>
+    <color name="accent_amber">#F6821F</color>
+    <color name="cloudflare_orange">#F6821F</color>
     <color name="accent_rose">#E11D48</color>
 
     <color name="status_connected">#059669</color>
-    <color name="status_connecting">#D97706</color>
+    <color name="status_connecting">#F6821F</color>
     <color name="status_disconnected">#DC2626</color>
     <color name="status_disconnected_glow">#22DC2626</color>
 

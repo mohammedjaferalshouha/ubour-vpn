@@ -46,6 +46,7 @@
 
     <string name="action_settings">الإعدادات</string>
     <string name="action_check_updates">فحص التحديثات</string>
+    <string name="action_toggle_theme">تغيير المظهر</string>
     <string name="checking_updates">جاري فحص التحديثات من المستودع...</string>
     <string name="update_available_title">تحديث جديد متوفر!</string>
     <string name="update_available_msg">تم إصدار نسخة جديدة من التطبيق: %1$s</string>

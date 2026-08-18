@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.net.VpnService
 import android.os.Build
@@ -15,12 +14,9 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
-import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -31,7 +27,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.ubour.vpn.R
 import com.ubour.vpn.adblock.AdBlockEngine
 import com.ubour.vpn.adblock.FilterUpdateService
@@ -44,7 +39,6 @@ import com.ubour.vpn.databinding.DialogAppsSelectorBinding
 import com.ubour.vpn.databinding.DialogSettingsBinding
 import com.ubour.vpn.databinding.DialogUpdateBinding
 import com.ubour.vpn.service.UbourVpnService
-import com.ubour.vpn.service.UpdateInfo
 import com.ubour.vpn.service.UpdateService
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -112,23 +106,34 @@ class MainActivity : AppCompatActivity() {
         val isAdBlockEnabled = prefs.getBoolean("adblock_enabled", true)
         binding.switchAdBlock.isChecked = isAdBlockEnabled
 
+        val savedBypassMode = prefs.getInt("bypass_mode", 1)
+        when (savedBypassMode) {
+            2 -> binding.rbModeFast.isChecked = true
+            3 -> binding.rbModeAggressive.isChecked = true
+            else -> binding.rbModeStandard.isChecked = true
+        }
+
         val savedOpMode = prefs.getInt("op_mode", AppOperationMode.WARP_AND_ADBLOCK.ordinal)
         when (savedOpMode) {
             AppOperationMode.VPN_AND_ADBLOCK.ordinal -> {
                 binding.rbOpFull.isChecked = true
                 binding.bypassModeCard.visibility = View.VISIBLE
+                binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_emerald))
             }
             AppOperationMode.ADBLOCK_ONLY.ordinal -> {
                 binding.rbOpAdBlockOnly.isChecked = true
                 binding.bypassModeCard.visibility = View.GONE
+                binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_shield))
             }
             AppOperationMode.VPN_ONLY.ordinal -> {
                 binding.rbOpVpnOnly.isChecked = true
                 binding.bypassModeCard.visibility = View.VISIBLE
+                binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_cyan))
             }
             else -> {
                 binding.rbOpWarp.isChecked = true
                 binding.bypassModeCard.visibility = View.GONE
+                binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.cloudflare_orange))
             }
         }
 
@@ -145,22 +150,47 @@ class MainActivity : AppCompatActivity() {
             val opMode = when (checkedId) {
                 R.id.rbOpFull -> {
                     binding.bypassModeCard.visibility = View.VISIBLE
+                    binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_emerald))
+                    if (!binding.switchAdBlock.isChecked) {
+                        binding.switchAdBlock.isChecked = true
+                    }
                     AppOperationMode.VPN_AND_ADBLOCK
                 }
                 R.id.rbOpAdBlockOnly -> {
                     binding.bypassModeCard.visibility = View.GONE
+                    binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_shield))
+                    if (!binding.switchAdBlock.isChecked) {
+                        binding.switchAdBlock.isChecked = true
+                    }
                     AppOperationMode.ADBLOCK_ONLY
                 }
                 R.id.rbOpVpnOnly -> {
                     binding.bypassModeCard.visibility = View.VISIBLE
+                    binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_cyan))
+                    if (binding.switchAdBlock.isChecked) {
+                        binding.switchAdBlock.isChecked = false
+                    }
                     AppOperationMode.VPN_ONLY
                 }
                 else -> {
                     binding.bypassModeCard.visibility = View.GONE
+                    binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.cloudflare_orange))
+                    if (!binding.switchAdBlock.isChecked) {
+                        binding.switchAdBlock.isChecked = true
+                    }
                     AppOperationMode.WARP_AND_ADBLOCK
                 }
             }
             prefs.edit().putInt("op_mode", opMode.ordinal).apply()
+        }
+
+        binding.rgBypassModes.setOnCheckedChangeListener { _, checkedId ->
+            val mode = when (checkedId) {
+                R.id.rbModeFast -> 2
+                R.id.rbModeAggressive -> 3
+                else -> 1
+            }
+            prefs.edit().putInt("bypass_mode", mode).apply()
         }
 
         binding.btnPower.setOnClickListener {
@@ -171,6 +201,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        binding.btnTheme.setOnClickListener {
+            showThemeSelectionDialog()
+        }
+
         binding.btnSettings.setOnClickListener {
             showSettingsDialog()
         }
@@ -178,6 +212,33 @@ class MainActivity : AppCompatActivity() {
         binding.btnCheckUpdates.setOnClickListener {
             showUpdateDialog()
         }
+    }
+
+    private fun showThemeSelectionDialog() {
+        val themes = arrayOf(
+            getString(R.string.theme_system),
+            getString(R.string.theme_dark),
+            getString(R.string.theme_light)
+        )
+        val modeValues = arrayOf(
+            AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM,
+            AppCompatDelegate.MODE_NIGHT_YES,
+            AppCompatDelegate.MODE_NIGHT_NO
+        )
+
+        val currentTheme = prefs.getInt("app_theme", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+        val currentIdx = modeValues.indexOf(currentTheme).coerceAtLeast(0)
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.settings_theme_title)
+            .setSingleChoiceItems(themes, currentIdx) { dialog, which ->
+                val selectedMode = modeValues[which]
+                prefs.edit().putInt("app_theme", selectedMode).apply()
+                AppCompatDelegate.setDefaultNightMode(selectedMode)
+                dialog.dismiss()
+            }
+            .setNegativeButton(R.string.btn_close, null)
+            .show()
     }
 
     private fun prepareAndStartVpn() {
@@ -210,7 +271,7 @@ class MainActivity : AppCompatActivity() {
         val bypassMode = getSelectedBypassMode()
         val opMode = getSelectedOpMode()
         val isAdBlockEnabled = binding.switchAdBlock.isChecked
-        val dns = prefs.getString("selected_dns", "94.140.14.14") ?: "94.140.14.14"
+        val dns = prefs.getString("selected_dns", "1.1.1.1") ?: "1.1.1.1"
 
         val serviceIntent = Intent(this, UbourVpnService::class.java).apply {
             action = UbourVpnService.ACTION_START
@@ -374,17 +435,17 @@ class MainActivity : AppCompatActivity() {
 
         // DNS Options
         val dnsOptions = listOf(
-            "AdGuard DNS (94.140.14.14) - مستحسن لمنع الإعلانات",
-            "Cloudflare (1.1.1.1)",
+            "Cloudflare (1.1.1.1) - الافتراضي السريع",
+            "AdGuard DNS (94.140.14.14) - حماية إضافية",
             "Google (8.8.8.8)",
             "Quad9 (9.9.9.9)"
         )
-        val dnsIps = listOf("94.140.14.14", "1.1.1.1", "8.8.8.8", "9.9.9.9")
+        val dnsIps = listOf("1.1.1.1", "94.140.14.14", "8.8.8.8", "9.9.9.9")
 
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, dnsOptions)
         dialogBinding.spDns.adapter = adapter
 
-        val currentDns = prefs.getString("selected_dns", "94.140.14.14")
+        val currentDns = prefs.getString("selected_dns", "1.1.1.1")
         val selectedIdx = dnsIps.indexOf(currentDns).coerceAtLeast(0)
         dialogBinding.spDns.setSelection(selectedIdx)
 
@@ -422,6 +483,11 @@ class MainActivity : AppCompatActivity() {
             showExcludedAppsDialog {
                 updateExcludedAppsLabel()
             }
+        }
+
+        // Custom VLESS Config
+        dialogBinding.btnVlessConfig.setOnClickListener {
+            showVlessConfigDialog()
         }
 
         fun updateBatteryUI() {
@@ -463,6 +529,30 @@ class MainActivity : AppCompatActivity() {
         }
 
         dialog.show()
+    }
+
+    private fun showVlessConfigDialog() {
+        val currentUrl = prefs.getString("custom_vless_url", "") ?: ""
+
+        val input = android.widget.EditText(this).apply {
+            hint = "vless://uuid@host:port?security=reality&sni=...&pbk=...&sid=..."
+            setText(currentUrl)
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.GRAY)
+            setPadding(32, 32, 32, 32)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.dialog_vless_title)
+            .setMessage(R.string.settings_vless_desc)
+            .setView(input)
+            .setPositiveButton(R.string.btn_save) { _, _ ->
+                val text = input.text.toString().trim()
+                prefs.edit().putString("custom_vless_url", text).apply()
+                Toast.makeText(this, "تم حفظ إعدادات خادم VLESS بنجاح", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(R.string.btn_cancel, null)
+            .show()
     }
 
     private fun showExcludedAppsDialog(onAppsUpdated: () -> Unit) {
@@ -594,36 +684,77 @@ class MainActivity : AppCompatActivity() {
             dialog.dismiss()
         }
 
+        fun refreshUpstreamText(status: com.ubour.vpn.service.FullSystemUpdateStatus?) {
+            val upstreamSb = StringBuilder()
+            upstreamSb.append("• قواعد AdGuard & uBlock: نشطة (${AdBlockEngine.totalRules} قاعدة)\n")
+            if (status != null) {
+                for (up in status.upstreams) {
+                    val stateText = if (up.isUpToDate) "محدث ✓" else "متوفر (${up.latestVersion})"
+                    upstreamSb.append("• ${up.name}: v${up.currentVersion} ($stateText)\n")
+                }
+            }
+            dialogBinding.tvUpstreamDetails.text = upstreamSb.toString().trimEnd()
+        }
+
+        var currentStatus: com.ubour.vpn.service.FullSystemUpdateStatus? = null
+
+        dialogBinding.btnUpdateFilters.setOnClickListener {
+            dialogBinding.progressBarUpdate.visibility = View.VISIBLE
+            dialogBinding.tvUpdateProgressStatus.visibility = View.VISIBLE
+            dialogBinding.tvUpdateProgressStatus.text = "جاري تحميل وتحديث أحدث قواعد التصفية..."
+            dialogBinding.btnUpdateFilters.isEnabled = false
+
+            lifecycleScope.launch {
+                val result = FilterUpdateService.updateFiltersOnline(applicationContext)
+                dialogBinding.progressBarUpdate.visibility = View.GONE
+                dialogBinding.btnUpdateFilters.isEnabled = true
+
+                if (result.success) {
+                    dialogBinding.tvUpdateProgressStatus.text = "تم التحديث بنجاح (${result.rulesCount} نطاق وقاعدة)"
+                    Toast.makeText(this@MainActivity, result.message, Toast.LENGTH_SHORT).show()
+                } else {
+                    dialogBinding.tvUpdateProgressStatus.text = "تعذر التحديث الحي، تم استخدام القواعد المخزنة"
+                    Toast.makeText(this@MainActivity, result.message, Toast.LENGTH_SHORT).show()
+                }
+                refreshUpstreamText(currentStatus)
+            }
+        }
+
         dialog.show()
 
         lifecycleScope.launch {
             val status = UpdateService.checkAllSystemUpstreams()
+            currentStatus = status
             dialogBinding.pbUpdate.visibility = View.GONE
             dialogBinding.layoutUpstreams.visibility = View.VISIBLE
 
             val appResult = status.appUpdate
+            val anyUpstreamUpdate = status.upstreams.any { !it.isUpToDate }
+
             if (appResult.hasUpdate) {
                 dialogBinding.tvUpdateMsg.text = getString(R.string.update_available_msg, appResult.latestVersion ?: "")
-                dialogBinding.btnDownload.visibility = View.VISIBLE
-                dialogBinding.btnDownload.setOnClickListener {
-                    val url = appResult.downloadUrl ?: appResult.releasePageUrl
-                    url?.let {
-                        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(it))
-                        startActivity(browserIntent)
-                    }
+                dialogBinding.btnDownloadUpdate.visibility = View.VISIBLE
+                dialogBinding.btnDownloadUpdate.setOnClickListener {
+                    val url = appResult.downloadUrl ?: appResult.releasePageUrl ?: "https://github.com/mohammedjaferalshouha/ubour-vpn/releases"
+                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    startActivity(browserIntent)
+                    dialog.dismiss()
+                }
+            } else if (anyUpstreamUpdate) {
+                dialogBinding.tvUpdateMsg.text = "تتوفر إصدارات جديدة لبعض المحركات المعتمدة."
+                dialogBinding.btnDownloadUpdate.visibility = View.VISIBLE
+                dialogBinding.btnDownloadUpdate.setOnClickListener {
+                    val url = appResult.releasePageUrl ?: "https://github.com/mohammedjaferalshouha/ubour-vpn/releases"
+                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    startActivity(browserIntent)
                     dialog.dismiss()
                 }
             } else {
                 dialogBinding.tvUpdateMsg.text = "تطبيق عبور محدث لآخر إصدار (v${UpdateService.CURRENT_APP_VERSION})."
+                dialogBinding.btnDownloadUpdate.visibility = View.GONE
             }
 
-            val upstreamSb = StringBuilder()
-            upstreamSb.append("• قواعد AdGuard & uBlock: نشطة (${AdBlockEngine.totalRules} قاعدة)\n")
-            for (up in status.upstreams) {
-                val stateText = if (up.isUpToDate) "محدث ✓" else "متوفر (${up.latestVersion})"
-                upstreamSb.append("• ${up.name}: v${up.currentVersion} ($stateText)\n")
-            }
-            dialogBinding.tvUpstreamDetails.text = upstreamSb.toString().trimEnd()
+            refreshUpstreamText(status)
         }
     }
 }

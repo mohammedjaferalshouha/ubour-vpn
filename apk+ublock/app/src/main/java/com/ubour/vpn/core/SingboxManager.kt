@@ -38,22 +38,41 @@ object SingboxManager {
         }
     }
 
-    private fun startProcess(context: Context, configFile: File): Boolean {
+    fun getExecutableBinary(context: Context): File? {
         val nativeDir = context.applicationInfo.nativeLibraryDir
-        val singboxBinary = File(nativeDir, "libsingbox.so")
+        val nativeBinary = File(nativeDir, "libsingbox.so")
+        if (nativeBinary.exists()) {
+            if (!nativeBinary.canExecute()) {
+                nativeBinary.setExecutable(true, true)
+            }
+            return nativeBinary
+        }
+        val fallbackBinary = File(context.filesDir, "libsingbox.so")
+        if (fallbackBinary.exists()) {
+            if (!fallbackBinary.canExecute()) {
+                fallbackBinary.setExecutable(true, true)
+            }
+            return fallbackBinary
+        }
+        Log.e(TAG, "libsingbox.so not found in nativeLibraryDir: $nativeDir")
+        return null
+    }
 
-        if (!singboxBinary.exists()) {
-            Log.e(TAG, "Sing-box binary not found at: ${singboxBinary.absolutePath}")
+    private fun startProcess(context: Context, configFile: File): Boolean {
+        val binaryToRun = getExecutableBinary(context)
+        if (binaryToRun == null || !binaryToRun.exists()) {
+            Log.e(TAG, "No valid singbox binary found in nativeLibraryDir!")
             return false
         }
 
         return try {
             val pb = ProcessBuilder(
-                singboxBinary.absolutePath,
+                binaryToRun.absolutePath,
                 "run",
                 "-c",
                 configFile.absolutePath
-            ).redirectErrorStream(true)
+            ).directory(context.filesDir)
+             .redirectErrorStream(true)
 
             process = pb.start()
 
@@ -63,22 +82,48 @@ object SingboxManager {
                     val reader = process?.inputStream?.bufferedReader()
                     while (isRunning()) {
                         val line = reader?.readLine() ?: break
-                        Log.d("SingboxCore", line)
+                        Log.i("SingboxCore", line)
                     }
                 } catch (_: Exception) {}
             }.start()
 
-            Log.i(TAG, "Sing-box successfully launched with config: ${configFile.name}")
-            true
+            Thread.sleep(400)
+            val alive = isRunning()
+            Log.i(TAG, "Sing-box process status: isAlive=$alive (Path: ${binaryToRun.absolutePath})")
+            alive
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to start Sing-box process: ${e.message}")
+            Log.e(TAG, "Failed to start Sing-box process: ${e.message}", e)
             false
         }
     }
 
     private fun generateWarpConfig(context: Context, warp: WarpConfig): File {
+        val addrs = JSONArray().apply {
+            put(warp.localIpv4)
+            if (!warp.localIpv6.isNullOrBlank()) {
+                put(warp.localIpv6)
+            }
+        }
+
+        val peerObj = JSONObject().apply {
+            put("address", warp.endpointHost)
+            put("port", warp.endpointPort)
+            put("public_key", warp.peerPublicKey)
+            put("allowed_ips", JSONArray().apply {
+                put("0.0.0.0/0")
+                put("::/0")
+            })
+            if (warp.reserved.size == 3) {
+                put("reserved", JSONArray().apply {
+                    warp.reserved.forEach { put(it) }
+                })
+            }
+        }
+
         val root = JSONObject().apply {
-            put("log", JSONObject().put("level", "warn"))
+            put("log", JSONObject().apply {
+                put("level", "info")
+            })
             put("inbounds", JSONArray().apply {
                 put(JSONObject().apply {
                     put("type", "socks")
@@ -87,51 +132,33 @@ object SingboxManager {
                     put("listen_port", SOCKS_PORT)
                 })
             })
-
-            val addrs = JSONArray().apply {
-                put(warp.localIpv4)
-                if (!warp.localIpv6.isNullOrBlank()) {
-                    put(warp.localIpv6)
-                }
-            }
-
-            val peers = JSONArray().apply {
-                put(JSONObject().apply {
-                    put("address", warp.endpointHost)
-                    put("port", warp.endpointPort)
-                    put("public_key", warp.peerPublicKey)
-                    put("allowed_ips", JSONArray().apply {
-                        put("0.0.0.0/0")
-                        put("::/0")
-                    })
-                })
-            }
-
             put("endpoints", JSONArray().apply {
                 put(JSONObject().apply {
                     put("type", "wireguard")
                     put("tag", "warp-ep")
                     put("address", addrs)
                     put("private_key", warp.privateKey)
-                    put("peers", peers)
+                    put("peers", JSONArray().apply {
+                        put(peerObj)
+                    })
                     put("mtu", 1280)
                 })
             })
-
             put("outbounds", JSONArray().apply {
                 put(JSONObject().apply {
                     put("type", "direct")
                     put("tag", "direct")
                 })
             })
-
             put("route", JSONObject().apply {
+                put("auto_detect_interface", false)
                 put("rules", JSONArray().apply {
                     put(JSONObject().apply {
-                        put("inbound", "socks-in")
+                        put("inbound", JSONArray().apply { put("socks-in") })
                         put("outbound", "warp-ep")
                     })
                 })
+                put("final", "warp-ep")
             })
         }
 
@@ -141,7 +168,6 @@ object SingboxManager {
     }
 
     private fun generateVlessConfig(context: Context, vlessUrl: String): File? {
-        // Support vless://uuid@host:port?security=reality&sni=...
         try {
             if (!vlessUrl.startsWith("vless://", ignoreCase = true)) return null
             val raw = vlessUrl.substring(8)
@@ -176,7 +202,7 @@ object SingboxManager {
             }
 
             val root = JSONObject().apply {
-                put("log", JSONObject().put("level", "warn"))
+                put("log", JSONObject().put("level", "info"))
                 put("inbounds", JSONArray().apply {
                     put(JSONObject().apply {
                         put("type", "socks")
