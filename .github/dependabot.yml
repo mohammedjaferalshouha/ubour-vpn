@@ -5,6 +5,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      actions-dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 5
 
   # Maintain dependencies for Android Gradle project
@@ -12,6 +16,10 @@ updates:
     directory: "/apk+ublock"
     schedule:
       interval: "weekly"
+    groups:
+      gradle-dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 5
 
   # Maintain dependencies for Windows .NET projects
@@ -19,10 +27,18 @@ updates:
     directory: "/vpn/Ubour"
     schedule:
       interval: "weekly"
+    groups:
+      nuget-dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 5
 
   - package-ecosystem: "nuget"
     directory: "/vpn/Ubour.Tests"
     schedule:
       interval: "weekly"
+    groups:
+      nuget-test-dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 5
