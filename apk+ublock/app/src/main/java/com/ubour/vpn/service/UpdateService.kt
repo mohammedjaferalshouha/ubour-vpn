@@ -1,5 +1,6 @@
 package com.ubour.vpn.service
 
+import com.ubour.vpn.BuildConfig
 import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
@@ -34,10 +35,25 @@ data class FullSystemUpdateStatus(
 
 object UpdateService {
     private const val TAG = "UpdateService"
-    const val CURRENT_APP_VERSION = "1.1.0"
+    val CURRENT_APP_VERSION: String
+        get() = BuildConfig.VERSION_NAME
+
     private const val CURRENT_SINGBOX_VERSION = "1.13.19"
     private const val CURRENT_BYEDPI_VERSION = "0.17.3"
     private const val CURRENT_GOODBYEDPI_VERSION = "0.2.3rc3"
+
+    fun getAppVersion(context: Context? = null): String {
+        return try {
+            if (context != null) {
+                val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                pInfo.versionName ?: BuildConfig.VERSION_NAME
+            } else {
+                BuildConfig.VERSION_NAME
+            }
+        } catch (_: Exception) {
+            BuildConfig.VERSION_NAME
+        }
+    }
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -45,24 +61,25 @@ object UpdateService {
         .build()
 
     suspend fun checkForAppUpdate(context: Context? = null): UpdateInfo = withContext(Dispatchers.IO) {
+        val currentVer = getAppVersion(context)
         val apiUrl = "https://api.github.com/repos/mohammedjaferalshouha/ubour-vpn/releases"
         try {
             val request = Request.Builder()
                 .url(apiUrl)
-                .header("User-Agent", "Ubour-Android-App/$CURRENT_APP_VERSION")
+                .header("User-Agent", "Ubour-Android-App/$currentVer")
                 .header("Accept", "application/vnd.github.v3+json")
                 .build()
 
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    return@withContext UpdateInfo(false, CURRENT_APP_VERSION, null, null, null)
+                    return@withContext UpdateInfo(false, currentVer, null, null, null)
                 }
 
-                val body = response.body?.string() ?: return@withContext UpdateInfo(false, CURRENT_APP_VERSION, null, null, null)
+                val body = response.body?.string() ?: return@withContext UpdateInfo(false, currentVer, null, null, null)
                 val jsonArray = JSONArray(body)
 
                 if (jsonArray.length() == 0) {
-                    return@withContext UpdateInfo(false, CURRENT_APP_VERSION, null, null, null)
+                    return@withContext UpdateInfo(false, currentVer, null, null, null)
                 }
 
                 val latest = jsonArray.getJSONObject(0)
@@ -83,7 +100,7 @@ object UpdateService {
                     }
                 }
 
-                val hasUpdate = isNewerVersion(tagName, CURRENT_APP_VERSION)
+                val hasUpdate = isNewerVersion(tagName, currentVer)
 
                 UpdateInfo(
                     hasUpdate = hasUpdate,
@@ -95,12 +112,12 @@ object UpdateService {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error checking update: ${e.message}")
-            UpdateInfo(false, CURRENT_APP_VERSION, null, null, null)
+            UpdateInfo(false, currentVer, null, null, null)
         }
     }
 
-    suspend fun checkAllSystemUpstreams(): FullSystemUpdateStatus = coroutineScope {
-        val appUpdateDeferred = async { checkForAppUpdate() }
+    suspend fun checkAllSystemUpstreams(context: Context? = null): FullSystemUpdateStatus = coroutineScope {
+        val appUpdateDeferred = async { checkForAppUpdate(context) }
         val singboxDeferred = async { fetchLatestReleaseTag("SagerNet/sing-box") }
         val byedpiDeferred = async { fetchLatestReleaseTag("hufrea/byedpi") }
         val goodbyedpiDeferred = async { fetchLatestReleaseTag("ValdikSS/GoodbyeDPI") }

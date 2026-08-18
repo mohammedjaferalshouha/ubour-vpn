@@ -723,7 +723,7 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
 
         lifecycleScope.launch {
-            val status = UpdateService.checkAllSystemUpstreams()
+            val status = UpdateService.checkAllSystemUpstreams(applicationContext)
             currentStatus = status
             dialogBinding.pbUpdate.visibility = View.GONE
             dialogBinding.layoutUpstreams.visibility = View.VISIBLE
@@ -750,7 +750,7 @@ class MainActivity : AppCompatActivity() {
                     dialog.dismiss()
                 }
             } else {
-                dialogBinding.tvUpdateMsg.text = "تطبيق عبور محدث لآخر إصدار (v${UpdateService.CURRENT_APP_VERSION})."
+                dialogBinding.tvUpdateMsg.text = "تطبيق عبور محدث لآخر إصدار (v${UpdateService.getAppVersion(applicationContext)})."
                 dialogBinding.btnDownloadUpdate.visibility = View.GONE
             }
 
