@@ -44,6 +44,16 @@ object AdBlockEngine {
     @Volatile
     private var isInitialized = false
 
+    fun loadRulesForTesting(rules: List<String> = emptyList()) {
+        blockedDomains.clear()
+        whiteListDomains.clear()
+        blockedDomains.addAll(dohEndpoints)
+        for (r in rules) {
+            parseAndAddRule(r)
+        }
+        isInitialized = true
+    }
+
     suspend fun initialize(context: Context) = withContext(Dispatchers.IO) {
         if (isInitialized) return@withContext
         reloadFromStorage(context)

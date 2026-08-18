@@ -1,4 +1,4 @@
-name: Automated Build & Release CI/CD
+name: Automated Build, Test & Release CI/CD
 
 on:
   push:
@@ -6,13 +6,16 @@ on:
       - main
     tags:
       - 'v*'
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
   schedule:
     - cron: '0 3 * * 1'
 
 jobs:
-  build:
-    name: Build & Publish Release APK
+  android-ci:
+    name: Android CI (Test, Lint & Build Release APK)
     runs-on: ubuntu-latest
 
     steps:
@@ -36,19 +39,98 @@ jobs:
           cd "apk+ublock"
           chmod +x gradlew
 
+      - name: Run Unit Tests & Lint
+        run: |
+          cd "apk+ublock"
+          ./gradlew test lint --no-daemon
+
       - name: Build Release APK
         run: |
           cd "apk+ublock"
           ./gradlew assembleRelease --no-daemon
 
-      - name: Copy & Prepare Release Artifact
+      - name: Prepare & Verify Release Artifacts
         run: |
           mkdir -p release_out
-          find "apk+ublock/app/build/outputs/apk/release" -name "*.apk" -exec cp {} "release_out/Ubour-VPN-Release.apk" \;
+          APK_FILE=$(find "apk+ublock/app/build/outputs/apk/release" -name "*.apk" | head -n 1)
+          if [ -z "$APK_FILE" ]; then
+            echo "Error: No release APK found!"
+            exit 1
+          fi
+          cp "$APK_FILE" "release_out/Ubour-VPN-Release.apk"
+          echo "Verified APK artifact size: $(wc -c < release_out/Ubour-VPN-Release.apk) bytes"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Ubour-VPN-Release-APK
           path: release_out/Ubour-VPN-Release.apk
+          retention-days: 30
+
+      - name: Upload Android Test & Lint Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Android-Test-and-Lint-Reports
+          path: |
+            apk+ublock/app/build/reports/tests/
+            apk+ublock/app/build/reports/lint-results*
+          retention-days: 14
+
+  windows-ci:
+    name: Windows CI (Build, Test & Multi-Architecture Publish)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore Dependencies
+        run: |
+          dotnet restore vpn/Ubour/Ubour.csproj
+          dotnet restore vpn/Ubour.Tests/Ubour.Tests.csproj
+
+      - name: Build Windows Client (Release)
+        run: |
+          dotnet build vpn/Ubour/Ubour.csproj -c Release --no-restore
+
+      - name: Run Windows Unit Tests
+        run: |
+          dotnet test vpn/Ubour.Tests/Ubour.Tests.csproj -c Release
+
+      - name: Publish Windows x64 Self-Contained
+        run: |
+          dotnet publish vpn/Ubour/Ubour.csproj -c Release -r win-x64 --self-contained true -o publish/Ubour-windows-x64
+
+      - name: Publish Windows x86 Self-Contained
+        run: |
+          dotnet publish vpn/Ubour/Ubour.csproj -c Release -r win-x86 --self-contained true -o publish/Ubour-windows-x86
+
+      - name: Create Windows Release Archives
+        shell: pwsh
+        run: |
+          mkdir -p release_out
+          Compress-Archive -Path publish/Ubour-windows-x64/* -DestinationPath release_out/Ubour-windows-x64.zip -Force
+          Compress-Archive -Path publish/Ubour-windows-x86/* -DestinationPath release_out/Ubour-windows-x86.zip -Force
+          Get-ChildItem release_out/
+
+      - name: Upload Windows x64 Release Archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ubour-Windows-x64-Release
+          path: release_out/Ubour-windows-x64.zip
+          retention-days: 30
+
+      - name: Upload Windows x86 Release Archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ubour-Windows-x86-Release
+          path: release_out/Ubour-windows-x86.zip
           retention-days: 30

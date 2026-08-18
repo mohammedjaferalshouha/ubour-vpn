@@ -34,7 +34,12 @@ obj/
 Thumbs.db
 desktop.ini
 
+# Build artifacts & outputs
+publish/
+release_out/
+
 # Analysis & temporary
 graphify-out/
 qa_screenshots/
 *.log
+
