@@ -20,6 +20,9 @@ updates:
       gradle-dependencies:
         patterns:
           - "*"
+    ignore:
+      - dependency-name: "com.android.tools.build:gradle"
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5
 
   # Maintain dependencies for Windows .NET projects
