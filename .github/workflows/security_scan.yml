@@ -11,10 +11,15 @@ on:
     - cron: '0 4 * * 1'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   secret-scan:
     name: Secret & Credential Leak Scanning (Gitleaks)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Repository
@@ -31,6 +36,8 @@ jobs:
   security-audit:
     name: Code & Configuration Security Checks
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Repository
