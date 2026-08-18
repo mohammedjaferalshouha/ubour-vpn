@@ -32,7 +32,7 @@ jobs:
           cache: 'gradle'
 
       - name: Setup Android SDK & NDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Grant Execute Permission to Gradle
         run: |
