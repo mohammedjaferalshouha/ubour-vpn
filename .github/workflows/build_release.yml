@@ -2,6 +2,8 @@ name: Automated Build & Release CI/CD
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
   workflow_dispatch:
@@ -42,7 +44,7 @@ jobs:
       - name: Copy & Prepare Release Artifact
         run: |
           mkdir -p release_out
-          cp "apk+ublock/app/build/outputs/apk/release/app-release.apk" "release_out/Ubour-VPN-Release.apk"
+          find "apk+ublock/app/build/outputs/apk/release" -name "*.apk" -exec cp {} "release_out/Ubour-VPN-Release.apk" \;
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4

@@ -26,7 +26,7 @@ class ByeDpiProxy {
                 return -1
             }
 
-            val (desyncMethod, splitPos, splitAtHost, isFake, fakeSni, desyncHttp, desyncHttps) = when (mode) {
+            val (desyncMethod, splitPos, splitAtHost, _, fakeSni, desyncHttp, desyncHttps) = when (mode) {
                 0 -> Tuple7(0, 0, false, false, "", true, true) // Mode 0 = Direct clean SOCKS5 with AdBlock inspection
                 2 -> Tuple7(1, 2, false, false, "www.google.com", true, true) // Split pos 2
                 3 -> Tuple7(2, 2, true, false, "www.google.com", true, true)  // Advanced Disorder + Host Split (Ultra stable & high bypass)

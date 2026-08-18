@@ -36,4 +36,5 @@ desktop.ini
 
 # Analysis & temporary
 graphify-out/
+qa_screenshots/
 *.log

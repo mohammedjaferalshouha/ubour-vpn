@@ -63,7 +63,7 @@ int check_domain_adblock(const char *domain) {
     int attached = 0;
     jint res = (*g_vm)->GetEnv(g_vm, (void **)&env, JNI_VERSION_1_6);
     if (res == JNI_EDETACHED) {
-        if ((*g_vm)->AttachCurrentThread(g_vm, (void **)&env, NULL) != 0) {
+        if ((*g_vm)->AttachCurrentThread(g_vm, (void *)&env, NULL) != 0) {
             return 0;
         }
         attached = 1;
