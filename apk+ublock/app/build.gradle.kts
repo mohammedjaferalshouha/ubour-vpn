@@ -14,15 +14,15 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.ubour.vpn"
-    compileSdk = 34
+    compileSdk = 35
     ndkVersion = "25.1.8937393"
 
     defaultConfig {
         applicationId = "com.ubour.vpn"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 2
-        versionName = "1.1.0"
+        versionName = "1.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
