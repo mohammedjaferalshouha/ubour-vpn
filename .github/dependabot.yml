@@ -26,6 +26,12 @@ updates:
       - dependency-name: "com.android.tools.build:gradle"
       - dependency-name: "com.android.application"
       - dependency-name: "org.jetbrains.kotlin*"
+      - dependency-name: "androidx.core:*"
+        versions: [">= 1.16.0"]
+      - dependency-name: "com.google.android.material:material"
+        versions: [">= 1.13.0"]
+      - dependency-name: "com.squareup.okhttp3:*"
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5
 
   # Maintain dependencies for Windows .NET projects
