@@ -16,14 +16,13 @@ updates:
     directory: "/apk+ublock"
     schedule:
       interval: "weekly"
-    groups:
-      gradle-dependencies:
-        patterns:
-          - "*"
     ignore:
+      - dependency-name: "gradle"
+      - dependency-name: "gradle-wrapper"
       - dependency-name: "com.android.tools.build:gradle"
-        update-types: ["version-update:semver-major"]
-    open-pull-requests-limit: 5
+      - dependency-name: "com.android.application"
+      - dependency-name: "org.jetbrains.kotlin*"
+    open-pull-requests-limit: 0
 
   # Maintain dependencies for Windows .NET projects
   - package-ecosystem: "nuget"
