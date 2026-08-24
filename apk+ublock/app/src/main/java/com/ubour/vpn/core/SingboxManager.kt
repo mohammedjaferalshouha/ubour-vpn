@@ -106,8 +106,8 @@ object SingboxManager {
         }
 
         val peerObj = JSONObject().apply {
-            put("address", warp.endpointHost)
-            put("port", warp.endpointPort)
+            put("server", warp.endpointHost)
+            put("server_port", warp.endpointPort)
             put("public_key", warp.peerPublicKey)
             put("allowed_ips", JSONArray().apply {
                 put("0.0.0.0/0")
@@ -118,6 +118,25 @@ object SingboxManager {
                     warp.reserved.forEach { put(it) }
                 })
             }
+        }
+
+        val warpOutbound = JSONObject().apply {
+            put("type", "wireguard")
+            put("tag", "warp-out")
+            put("server", warp.endpointHost)
+            put("server_port", warp.endpointPort)
+            put("local_address", addrs)
+            put("private_key", warp.privateKey)
+            put("peer_public_key", warp.peerPublicKey)
+            if (warp.reserved.size == 3) {
+                put("reserved", JSONArray().apply {
+                    warp.reserved.forEach { put(it) }
+                })
+            }
+            put("peers", JSONArray().apply {
+                put(peerObj)
+            })
+            put("mtu", 1280)
         }
 
         val root = JSONObject().apply {
@@ -132,33 +151,21 @@ object SingboxManager {
                     put("listen_port", SOCKS_PORT)
                 })
             })
-            put("endpoints", JSONArray().apply {
-                put(JSONObject().apply {
-                    put("type", "wireguard")
-                    put("tag", "warp-ep")
-                    put("address", addrs)
-                    put("private_key", warp.privateKey)
-                    put("peers", JSONArray().apply {
-                        put(peerObj)
-                    })
-                    put("mtu", 1280)
-                })
-            })
             put("outbounds", JSONArray().apply {
+                put(warpOutbound)
                 put(JSONObject().apply {
                     put("type", "direct")
                     put("tag", "direct")
                 })
             })
             put("route", JSONObject().apply {
-                put("auto_detect_interface", false)
                 put("rules", JSONArray().apply {
                     put(JSONObject().apply {
                         put("inbound", JSONArray().apply { put("socks-in") })
-                        put("outbound", "warp-ep")
+                        put("outbound", "warp-out")
                     })
                 })
-                put("final", "warp-ep")
+                put("final", "warp-out")
             })
         }
 
