@@ -205,21 +205,15 @@ object WarpManager {
                         localIpv6 = v6Cidr,
                         reserved = reservedBytes
                     )
+                } else {
+                    Log.e(TAG, "Registration HTTP failed: code=${response.code}")
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Registration failed, using fallback config: ${e.message}")
+            Log.e(TAG, "Registration failed: ${e.message}")
         }
 
-        WarpConfig(
-            privateKey = "QFb39ooaBYVDqSwZuwmnXJfmZQh5y2GaSM6yv3rV7kE=",
-            publicKey = "SGQoI1GOzPThfSGIyxMks6TL7B2T2x+fvE4JqMv1ThQ=",
-            endpointHost = hostToUse,
-            endpointPort = portToUse,
-            localIpv4 = "172.16.0.2/32",
-            localIpv6 = "2606:4700:110:8ee3:bc9f:edcc:8ad8:5252/128",
-            reserved = listOf(122, 15, 67)
-        )
+        throw IllegalStateException("Failed to register with Cloudflare WARP API")
     }
 
     private fun enableWarp(regId: String, token: String) {
@@ -256,35 +250,82 @@ object WarpManager {
     }
 
     private fun generateWireguardKeyPair(context: Context): Pair<String, String> {
-        val singboxFile = SingboxManager.getExecutableBinary(context)
-        if (singboxFile != null && singboxFile.exists()) {
-            try {
-                val proc = ProcessBuilder(singboxFile.absolutePath, "generate", "wg-keypair")
-                    .redirectErrorStream(true)
-                    .start()
-                val output = proc.inputStream.bufferedReader().readText()
-                proc.waitFor()
-                
-                var priv: String? = null
-                var pub: String? = null
-                output.lines().forEach { line ->
-                    if (line.startsWith("PrivateKey:", ignoreCase = true)) {
-                        priv = line.substringAfter(":").trim()
-                    } else if (line.startsWith("PublicKey:", ignoreCase = true)) {
-                        pub = line.substringAfter(":").trim()
-                    }
-                }
-                if (!priv.isNullOrBlank() && !pub.isNullOrBlank()) {
-                    return Pair(priv!!, pub!!)
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to run singbox generate: ${e.message}")
+        return try {
+            val random = java.security.SecureRandom()
+            val rawPriv = ByteArray(32)
+            random.nextBytes(rawPriv)
+            val clamped = Curve25519KeyGen.clamp(rawPriv)
+            val pub = Curve25519KeyGen.generatePublicKey(clamped)
+            val privB64 = Base64.encodeToString(clamped, Base64.NO_WRAP)
+            val pubB64 = Base64.encodeToString(pub, Base64.NO_WRAP)
+            Pair(privB64, pubB64)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error generating keypair: ${e.message}", e)
+            throw e
+        }
+    }
+}
+
+private object Curve25519KeyGen {
+    private val P = java.math.BigInteger.valueOf(2).pow(255).subtract(java.math.BigInteger.valueOf(19))
+    private val A24 = java.math.BigInteger.valueOf(121665)
+
+    fun clamp(key: ByteArray): ByteArray {
+        val k = key.clone()
+        k[0] = (k[0].toInt() and 248).toByte()
+        k[31] = ((k[31].toInt() and 127) or 64).toByte()
+        return k
+    }
+
+    fun generatePublicKey(privateKeyClamped: ByteArray): ByteArray {
+        val x1 = java.math.BigInteger.valueOf(9)
+        var x2 = java.math.BigInteger.ONE
+        var z2 = java.math.BigInteger.ZERO
+        var x3 = x1
+        var z3 = java.math.BigInteger.ONE
+        var swap = 0
+
+        for (t in 254 downTo 0) {
+            val byteIndex = t / 8
+            val bitIndex = t % 8
+            val bit = (privateKeyClamped[byteIndex].toInt() shr bitIndex) and 1
+
+            if (bit != swap) {
+                var tmp = x2; x2 = x3; x3 = tmp
+                tmp = z2; z2 = z3; z3 = tmp
+                swap = bit
             }
+
+            val a = x2.add(z2).mod(P)
+            val aa = a.multiply(a).mod(P)
+            val b = x2.subtract(z2).mod(P)
+            val bb = b.multiply(b).mod(P)
+            val e = aa.subtract(bb).mod(P)
+            val c = x3.add(z3).mod(P)
+            val d = x3.subtract(z3).mod(P)
+            val da = d.multiply(a).mod(P)
+            val cb = c.multiply(b).mod(P)
+
+            val daPlusCb = da.add(cb).mod(P)
+            val daMinusCb = da.subtract(cb).mod(P)
+
+            x3 = daPlusCb.multiply(daPlusCb).mod(P)
+            z3 = x1.multiply(daMinusCb.multiply(daMinusCb).mod(P)).mod(P)
+            x2 = aa.multiply(bb).mod(P)
+            z2 = e.multiply(aa.add(A24.multiply(e).mod(P))).mod(P)
         }
 
-        return Pair(
-            "QFb39ooaBYVDqSwZuwmnXJfmZQh5y2GaSM6yv3rV7kE=",
-            "SGQoI1GOzPThfSGIyxMks6TL7B2T2x+fvE4JqMv1ThQ="
-        )
+        if (swap == 1) {
+            val tmp = x2; x2 = x3; x3 = tmp
+            val tmpZ = z2; z2 = z3; z3 = tmpZ
+        }
+
+        val result = x2.multiply(z2.modInverse(P)).mod(P)
+        val raw = result.toByteArray()
+        val pub = ByteArray(32)
+        for (i in 0 until raw.size.coerceAtMost(32)) {
+            pub[i] = raw[raw.size - 1 - i]
+        }
+        return pub
     }
 }

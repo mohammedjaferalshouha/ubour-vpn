@@ -1,0 +1,11 @@
+title = "Ubour VPN Gitleaks Configuration"
+
+[allowlist]
+description = "Allowlist for past historical commits and test artifacts"
+paths = [
+    '''gitleaks-results\.sarif''',
+]
+commits = [
+    "88f6b98265b8946ba661b7b4e6fff497f06297f1",
+    "8b1242d998f836eccad0bc95c4466be2e4cfc3c4"
+]
