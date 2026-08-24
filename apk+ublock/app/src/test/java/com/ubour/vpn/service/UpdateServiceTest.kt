@@ -9,20 +9,20 @@ class UpdateServiceTest {
     fun testCurrentAppVersionNotEmpty() {
         assertNotNull(UpdateService.CURRENT_APP_VERSION)
         assertTrue(UpdateService.CURRENT_APP_VERSION.isNotBlank())
-        assertEquals("1.3.0", UpdateService.CURRENT_APP_VERSION)
+        assertEquals("1.4.0", UpdateService.CURRENT_APP_VERSION)
     }
 
     @Test
     fun testUpdateInfoDataClass() {
         val updateInfo = UpdateInfo(
             hasUpdate = true,
-            latestVersion = "1.3.0",
+            latestVersion = "1.4.0",
             downloadUrl = "https://example.com/app.apk",
             releaseNotes = "Fixes and improvements",
-            releasePageUrl = "https://github.com/mohammedjaferalshouha/ubour-vpn/releases/tag/v1.3.0"
+            releasePageUrl = "https://github.com/mohammedjaferalshouha/ubour-vpn/releases/tag/v1.4.0"
         )
         assertTrue(updateInfo.hasUpdate)
-        assertEquals("1.3.0", updateInfo.latestVersion)
+        assertEquals("1.4.0", updateInfo.latestVersion)
         assertEquals("https://example.com/app.apk", updateInfo.downloadUrl)
     }
 
