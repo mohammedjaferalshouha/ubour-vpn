@@ -99,21 +99,25 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Download & Setup sing-box Engine Binaries
-        shell: pwsh
+      - name: Setup sing-box Engine Binaries
+        shell: python
         run: |
-          New-Item -ItemType Directory -Force -Path vpn/Ubour/engine/x86_64
-          New-Item -ItemType Directory -Force -Path vpn/Ubour/engine/x86
-          
-          curl.exe -sL "https://github.com/SagerNet/sing-box/releases/download/v1.13.19/sing-box-1.13.19-windows-amd64.zip" -o sing-box-x64.zip
-          tar.exe -xf sing-box-x64.zip
-          Get-ChildItem -Path "sing-box-*" -Filter "sing-box.exe" -Recurse | Select-Object -First 1 | Copy-Item -Destination "vpn/Ubour/engine/x86_64/sing-box.exe" -Force
-          Remove-Item -Recurse -Force sing-box-*, sing-box-x64.zip
-          
-          curl.exe -sL "https://github.com/SagerNet/sing-box/releases/download/v1.13.19/sing-box-1.13.19-windows-386.zip" -o sing-box-x86.zip
-          tar.exe -xf sing-box-x86.zip
-          Get-ChildItem -Path "sing-box-*" -Filter "sing-box.exe" -Recurse | Select-Object -First 1 | Copy-Item -Destination "vpn/Ubour/engine/x86/sing-box.exe" -Force
-          Remove-Item -Recurse -Force sing-box-*, sing-box-x86.zip
+          import urllib.request, zipfile, io, os
+
+          for arch, zip_arch in [('x86_64', 'amd64'), ('x86', '386')]:
+              dest_dir = os.path.join('vpn', 'Ubour', 'engine', arch)
+              os.makedirs(dest_dir, exist_ok=True)
+              dest_file = os.path.join(dest_dir, 'sing-box.exe')
+              url = f'https://github.com/SagerNet/sing-box/releases/download/v1.13.19/sing-box-1.13.19-windows-{zip_arch}.zip'
+              print(f'Downloading {url}...')
+              req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+              with urllib.request.urlopen(req) as resp:
+                  z = zipfile.ZipFile(io.BytesIO(resp.read()))
+                  for member in z.namelist():
+                      if member.endswith('sing-box.exe'):
+                          with open(dest_file, 'wb') as f:
+                              f.write(z.read(member))
+                          print(f'Extracted sing-box.exe for {arch} successfully')
 
       - name: Restore Dependencies
         run: |
