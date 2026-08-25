@@ -102,16 +102,18 @@ jobs:
       - name: Download & Setup sing-box Engine Binaries
         shell: pwsh
         run: |
-          mkdir -p vpn/Ubour/engine/x86_64
-          mkdir -p vpn/Ubour/engine/x86
+          New-Item -ItemType Directory -Force -Path vpn/Ubour/engine/x86_64
+          New-Item -ItemType Directory -Force -Path vpn/Ubour/engine/x86
           
-          Invoke-WebRequest -Uri "https://github.com/SagerNet/sing-box/releases/download/v1.13.19/sing-box-1.13.19-windows-amd64.zip" -OutFile "sing-box-x64.zip"
-          Expand-Archive -Path "sing-box-x64.zip" -DestinationPath "temp_x64" -Force
-          Get-ChildItem -Path "temp_x64" -Filter "sing-box.exe" -Recurse | Copy-Item -Destination "vpn/Ubour/engine/x86_64/sing-box.exe" -Force
+          curl.exe -sL "https://github.com/SagerNet/sing-box/releases/download/v1.13.19/sing-box-1.13.19-windows-amd64.zip" -o sing-box-x64.zip
+          tar.exe -xf sing-box-x64.zip
+          Get-ChildItem -Path "sing-box-*" -Filter "sing-box.exe" -Recurse | Select-Object -First 1 | Copy-Item -Destination "vpn/Ubour/engine/x86_64/sing-box.exe" -Force
+          Remove-Item -Recurse -Force sing-box-*, sing-box-x64.zip
           
-          Invoke-WebRequest -Uri "https://github.com/SagerNet/sing-box/releases/download/v1.13.19/sing-box-1.13.19-windows-386.zip" -OutFile "sing-box-x86.zip"
-          Expand-Archive -Path "sing-box-x86.zip" -DestinationPath "temp_x86" -Force
-          Get-ChildItem -Path "temp_x86" -Filter "sing-box.exe" -Recurse | Copy-Item -Destination "vpn/Ubour/engine/x86/sing-box.exe" -Force
+          curl.exe -sL "https://github.com/SagerNet/sing-box/releases/download/v1.13.19/sing-box-1.13.19-windows-386.zip" -o sing-box-x86.zip
+          tar.exe -xf sing-box-x86.zip
+          Get-ChildItem -Path "sing-box-*" -Filter "sing-box.exe" -Recurse | Select-Object -First 1 | Copy-Item -Destination "vpn/Ubour/engine/x86/sing-box.exe" -Force
+          Remove-Item -Recurse -Force sing-box-*, sing-box-x86.zip
 
       - name: Restore Dependencies
         run: |
