@@ -193,18 +193,7 @@ object SingboxManager {
                 })
             })
             put("route", JSONObject().apply {
-                put("rules", JSONArray().apply {
-                    if (enableAdBlock) {
-                        put(JSONObject().apply {
-                            put("port", JSONArray().apply { put(53) })
-                            put("action", "hijack-dns")
-                        })
-                    }
-                    put(JSONObject().apply {
-                        put("inbound", JSONArray().apply { put("socks-in") })
-                        put("outbound", "warp-ep")
-                    })
-                })
+                put("rules", buildRouteRules(enableAdBlock, "warp-ep"))
                 put("final", "warp-ep")
             })
         }
@@ -246,16 +235,7 @@ object SingboxManager {
                 })
             })
             put("route", JSONObject().apply {
-                put("rules", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("port", JSONArray().apply { put(53) })
-                        put("action", "hijack-dns")
-                    })
-                    put(JSONObject().apply {
-                        put("inbound", JSONArray().apply { put("socks-in") })
-                        put("outbound", "direct")
-                    })
-                })
+                put("rules", buildRouteRules(enableAdBlock = true, "direct"))
                 put("final", "direct")
             })
         }
@@ -305,16 +285,7 @@ object SingboxManager {
                 })
             })
             put("route", JSONObject().apply {
-                put("rules", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("port", JSONArray().apply { put(53) })
-                        put("action", "hijack-dns")
-                    })
-                    put(JSONObject().apply {
-                        put("inbound", JSONArray().apply { put("socks-in") })
-                        put("outbound", "byedpi-out")
-                    })
-                })
+                put("rules", buildRouteRules(enableAdBlock = true, "byedpi-out"))
                 put("final", "byedpi-out")
             })
         }
@@ -459,18 +430,7 @@ object SingboxManager {
                     })
                 })
                 put("route", JSONObject().apply {
-                    put("rules", JSONArray().apply {
-                        if (enableAdBlock) {
-                            put(JSONObject().apply {
-                                put("port", JSONArray().apply { put(53) })
-                                put("action", "hijack-dns")
-                            })
-                        }
-                        put(JSONObject().apply {
-                            put("inbound", JSONArray().apply { put("socks-in") })
-                            put("outbound", "vless-out")
-                        })
-                    })
+                    put("rules", buildRouteRules(enableAdBlock, "vless-out"))
                     put("final", "vless-out")
                 })
             }
@@ -482,5 +442,53 @@ object SingboxManager {
             Log.e(TAG, "Failed to parse vless URL: ${e.message}")
             return null
         }
+    }
+
+    private fun buildRouteRules(enableAdBlock: Boolean, outboundTag: String): JSONArray {
+        val rules = JSONArray()
+        if (enableAdBlock) {
+            // 1. Hijack standard DNS on port 53 to our local dns-filter
+            rules.put(JSONObject().apply {
+                put("port", JSONArray().apply { put(53) })
+                put("action", "hijack-dns")
+            })
+            // 2. Reject DoT (DNS over TLS) on port 853 so apps immediately fallback to port 53
+            rules.put(JSONObject().apply {
+                put("port", JSONArray().apply { put(853) })
+                put("action", "reject")
+            })
+            // 3. Reject DoH (DNS over HTTPS) endpoints so Chrome & browsers fallback to system DNS
+            rules.put(JSONObject().apply {
+                put("domain_suffix", JSONArray().apply {
+                    put("dns.google")
+                    put("dns.google.com")
+                    put("cloudflare-dns.com")
+                    put("chrome.cloudflare-dns.com")
+                    put("mozilla.cloudflare-dns.com")
+                    put("dns.quad9.net")
+                    put("doh.opendns.com")
+                    put("dns.nextdns.io")
+                    put("doh.cleanbrowsing.org")
+                    put("dns.alidns.com")
+                    put("doh.pub")
+                    put("sm2.doh.pub")
+                })
+                put("action", "reject")
+            })
+            // 4. Reject direct connections to 0.0.0.0 / ::0 immediately
+            rules.put(JSONObject().apply {
+                put("ip_cidr", JSONArray().apply {
+                    put("0.0.0.0/32")
+                    put("::0/128")
+                })
+                put("action", "reject")
+            })
+        }
+        // Main outbound traffic rule
+        rules.put(JSONObject().apply {
+            put("inbound", JSONArray().apply { put("socks-in") })
+            put("outbound", outboundTag)
+        })
+        return rules
     }
 }
