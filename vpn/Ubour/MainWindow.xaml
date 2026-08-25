@@ -1,11 +1,11 @@
 <Window x:Class="Ubour.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Ubour"
-        Width="790"
-        Height="555"
-        MinWidth="690"
-        MinHeight="500"
+        Title="Ubour - عبور"
+        Width="920"
+        Height="680"
+        MinWidth="820"
+        MinHeight="620"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource WindowBrush}"
         Foreground="{DynamicResource TextBrush}"
@@ -17,60 +17,262 @@
       <Setter Property="Background" Value="{DynamicResource PanelSoftBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
       <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="Padding" Value="15,9" />
+      <Setter Property="Padding" Value="14,8" />
       <Setter Property="Margin" Value="4" />
       <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="10" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="border" Property="Opacity" Value="0.85" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style TargetType="RadioButton">
+      <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Margin" Value="0,4" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="RadioButton">
+            <Border x:Name="cardBorder" Background="{DynamicResource PanelSoftBrush}" CornerRadius="12" Padding="14,10" Margin="0,3">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Ellipse x:Name="outerCircle" Width="18" Height="18" Stroke="{DynamicResource MutedBrush}" StrokeThickness="2" VerticalAlignment="Center" Margin="0,0,12,0" />
+                <Ellipse x:Name="innerCircle" Width="8" Height="8" Fill="{DynamicResource AccentBrush}" Visibility="Collapsed" VerticalAlignment="Center" Margin="0,0,12,0" />
+                <ContentPresenter Grid.Column="1" VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="cardBorder" Property="Background" Value="{DynamicResource PanelSelectedBrush}" />
+                <Setter TargetName="outerCircle" Property="Stroke" Value="{DynamicResource AccentBrush}" />
+                <Setter TargetName="innerCircle" Property="Visibility" Value="Visible" />
+              </Trigger>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="cardBorder" Property="Opacity" Value="0.9" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
   </Window.Resources>
-  <Grid Margin="28">
+
+  <Grid Margin="24">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
+
+    <!-- Header -->
     <Grid Grid.Row="0">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
       <StackPanel>
-        <TextBlock x:Name="AppTitle" Text="عبور" FontSize="35" FontWeight="SemiBold" />
-        <TextBlock x:Name="AppSubtitle" Text="وصول بسيط وآمن إلى المواقع المتاحة" Foreground="{DynamicResource MutedBrush}" FontSize="15" Margin="0,4,0,0" />
+        <TextBlock x:Name="AppTitle" Text="عبور + مانع الإعلانات" FontSize="26" FontWeight="Bold" />
+        <TextBlock x:Name="AppSubtitle" Text="تجاوز حجب DPI وتصفية شاملة للإعلانات والتتبع" Foreground="{DynamicResource MutedBrush}" FontSize="13" Margin="0,3,0,0" />
       </StackPanel>
-      <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+      <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+        <Button x:Name="SettingsButton" Content="⚙ الإعدادات" Click="SettingsButton_Click" />
         <Button x:Name="LanguageButton" Content="English" Click="LanguageButton_Click" />
-        <Button x:Name="ThemeButton" Content="وضع فاتح" Click="ThemeButton_Click" />
+        <Button x:Name="ThemeButton" Content="🌙 داكن" Click="ThemeButton_Click" />
       </StackPanel>
     </Grid>
 
-    <Grid Grid.Row="1" Margin="0,30,0,24">
+    <!-- Main Content -->
+    <Grid Grid.Row="1" Margin="0,18,0,16">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="1.25*" />
-        <ColumnDefinition Width="0.75*" />
+        <ColumnDefinition Width="1.1*" />
+        <ColumnDefinition Width="0.9*" />
       </Grid.ColumnDefinitions>
-      <Border Background="{DynamicResource PanelBrush}" CornerRadius="22" Padding="30" Margin="0,0,18,0">
-        <StackPanel>
-          <Border x:Name="StatusDot" Width="14" Height="14" CornerRadius="7" Background="{DynamicResource DangerBrush}" HorizontalAlignment="Right" />
-          <TextBlock x:Name="StatusLabel" Text="غير متصل" FontSize="25" FontWeight="SemiBold" Margin="0,18,0,4" />
-          <TextBlock x:Name="StatusDetail" Text="محرك الاتصال متوقف." Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" Height="46" />
-          <Button x:Name="ToggleButton" Content="تشغيل الاتصال" Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource AccentTextBrush}" FontSize="17" FontWeight="SemiBold" Margin="0,28,0,0" Padding="18,13" Click="ToggleButton_Click" />
-          <Button x:Name="CheckUpdatesButton" Content="فحص التحديثات" Margin="0,12,0,0" Click="CheckUpdatesButton_Click" />
-          <Button x:Name="OpenEngineReleaseButton" Content="فتح صفحة التحديث الرسمي" Margin="0,6,0,0" Visibility="Collapsed" Click="OpenEngineReleaseButton_Click" />
-        </StackPanel>
+
+      <!-- Left Column: Power Button & Modes -->
+      <Border Background="{DynamicResource PanelBrush}" CornerRadius="18" Padding="22" Margin="0,0,14,0">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel>
+            <!-- Power Button -->
+            <Grid HorizontalAlignment="Center" Margin="0,4,0,14">
+              <Ellipse x:Name="PowerGlowRing" Width="140" Height="140" Stroke="{DynamicResource DangerBrush}" StrokeThickness="6" Opacity="0.3" />
+              <Button x:Name="PowerButton" Width="120" Height="120" Click="PowerButton_Click" Background="{DynamicResource DangerBrush}" Foreground="White" BorderThickness="0" Cursor="Hand">
+                <Button.Template>
+                  <ControlTemplate TargetType="Button">
+                    <Border x:Name="btnBorder" Background="{TemplateBinding Background}" CornerRadius="60">
+                      <TextBlock Text="⏻" FontSize="46" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{TemplateBinding Foreground}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                      <Trigger Property="IsMouseOver" Value="True">
+                        <Setter TargetName="btnBorder" Property="Opacity" Value="0.9" />
+                      </Trigger>
+                    </ControlTemplate.Triggers>
+                  </ControlTemplate>
+                </Button.Template>
+              </Button>
+            </Grid>
+
+            <!-- Status Info -->
+            <TextBlock x:Name="StatusLabel" Text="متوقف" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" />
+            <TextBlock x:Name="StatusDetail" Text="اضغط زر التشغيل لبدء الاتصال وتفعيل التصفية" Foreground="{DynamicResource MutedBrush}" FontSize="12" HorizontalAlignment="Center" Margin="0,2,0,16" TextWrapping="Wrap" TextAlignment="Center" />
+
+            <!-- Mode Selection Section -->
+            <TextBlock x:Name="ModeSectionTitle" Text="وضع التشغيل الأساسي" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,6" />
+            
+            <RadioButton x:Name="ModeWarp" IsChecked="True" Checked="ModeRadio_Checked">
+              <StackPanel>
+                <TextBlock x:Name="LblModeWarp" Text="نفق كلاود فلير (Cloudflare WARP) + منع الإعلانات" FontWeight="SemiBold" FontSize="13" />
+                <TextBlock x:Name="LblModeWarpDesc" Text="حماية وتشفير عالمي مع تصفية كاملة للإعلانات" Foreground="{DynamicResource MutedBrush}" FontSize="11" />
+              </StackPanel>
+            </RadioButton>
+
+            <RadioButton x:Name="ModeDpiAdBlock" Checked="ModeRadio_Checked">
+              <StackPanel>
+                <TextBlock x:Name="LblModeDpiAdBlock" Text="تجاوز الحجب المباشر (DPI) + منع الإعلانات" FontWeight="SemiBold" FontSize="13" />
+                <TextBlock x:Name="LblModeDpiAdBlockDesc" Text="سرعة 100% بدون تغيير الـ IP مع حظر تام للإعلانات" Foreground="{DynamicResource MutedBrush}" FontSize="11" />
+              </StackPanel>
+            </RadioButton>
+
+            <RadioButton x:Name="ModeAdBlockOnly" Checked="ModeRadio_Checked">
+              <StackPanel>
+                <TextBlock x:Name="LblModeAdBlockOnly" Text="منع الإعلانات والتتبع فقط" FontWeight="SemiBold" FontSize="13" />
+                <TextBlock x:Name="LblModeAdBlockOnlyDesc" Text="خفيف جداً على موارد الحاسوب وسرعة فائقة" Foreground="{DynamicResource MutedBrush}" FontSize="11" />
+              </StackPanel>
+            </RadioButton>
+
+            <RadioButton x:Name="ModeDpiOnly" Checked="ModeRadio_Checked">
+              <StackPanel>
+                <TextBlock x:Name="LblModeDpiOnly" Text="تجاوز الحجب فقط (بدون تصفية)" FontWeight="SemiBold" FontSize="13" />
+                <TextBlock x:Name="LblModeDpiOnlyDesc" Text="فك حجب المواقع مباشرة" Foreground="{DynamicResource MutedBrush}" FontSize="11" />
+              </StackPanel>
+            </RadioButton>
+
+            <RadioButton x:Name="ModeCustomVless" Checked="ModeRadio_Checked">
+              <StackPanel>
+                <TextBlock x:Name="LblModeCustomVless" Text="خادم VLESS Reality مخصص" FontWeight="SemiBold" FontSize="13" />
+                <TextBlock x:Name="LblModeCustomVlessDesc" Text="اتصال مشفر متقدم بخادمك الخاص مع منع الإعلانات" Foreground="{DynamicResource MutedBrush}" FontSize="11" />
+              </StackPanel>
+            </RadioButton>
+          </StackPanel>
+        </ScrollViewer>
       </Border>
-      <Border Grid.Column="1" Background="{DynamicResource PanelBrush}" CornerRadius="22" Padding="25">
-        <StackPanel>
-          <TextBlock x:Name="InfoTitle" Text="حالة البرنامج" FontSize="18" FontWeight="SemiBold" />
-          <Separator Margin="0,14" Opacity="0.15" />
-          <TextBlock x:Name="EngineInfo" Text="محرك التشغيل: غير مفحوص" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" Margin="0,0,0,14" />
-          <TextBlock x:Name="UpdateInfo" Text="فحص التحديثات عند الفتح." Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" Margin="0,0,0,14" />
-          <TextBlock x:Name="ExitInfo" Text="التصغير يبقي الاتصال يعمل. زر الإغلاق يوقفه كليًا." Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" />
-        </StackPanel>
-      </Border>
+
+      <!-- Right Column: Live Metrics & Engine Status -->
+      <Grid Grid.Column="1">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="*" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Background="{DynamicResource PanelBrush}" CornerRadius="18" Padding="20">
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+              <TextBlock x:Name="MetricsTitle" Text="لوحة الإحصائيات الحية" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,14" />
+
+              <!-- Card: Blocked Ads -->
+              <Border Background="{DynamicResource PanelSoftBrush}" CornerRadius="12" Padding="14,10" Margin="0,0,0,10">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel>
+                    <TextBlock x:Name="LblAdsBlocked" Text="إعلانات محجوبة" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+                    <TextBlock x:Name="TxtAdsBlocked" Text="0" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Margin="0,2,0,0" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" Text="🛡" FontSize="24" VerticalAlignment="Center" />
+                </Grid>
+              </Border>
+
+              <!-- Card: Blocked Trackers -->
+              <Border Background="{DynamicResource PanelSoftBrush}" CornerRadius="12" Padding="14,10" Margin="0,0,0,10">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel>
+                    <TextBlock x:Name="LblTrackersBlocked" Text="متعقبات محجوبة" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+                    <TextBlock x:Name="TxtTrackersBlocked" Text="0" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" Margin="0,2,0,0" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" Text="👁" FontSize="24" VerticalAlignment="Center" />
+                </Grid>
+              </Border>
+
+              <!-- Card: Active Rules -->
+              <Border Background="{DynamicResource PanelSoftBrush}" CornerRadius="12" Padding="14,10" Margin="0,0,0,10">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel>
+                    <TextBlock x:Name="LblActiveRules" Text="قواعد التصفية النشطة" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+                    <TextBlock x:Name="TxtActiveRules" Text="809,716" FontSize="20" FontWeight="Bold" Margin="0,2,0,0" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" Text="⚡" FontSize="24" VerticalAlignment="Center" />
+                </Grid>
+              </Border>
+
+              <!-- Card: Total Queries -->
+              <Border Background="{DynamicResource PanelSoftBrush}" CornerRadius="12" Padding="14,10" Margin="0,0,0,10">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel>
+                    <TextBlock x:Name="LblTotalQueries" Text="إجمالي استعلامات DNS" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+                    <TextBlock x:Name="TxtTotalQueries" Text="0" FontSize="18" FontWeight="SemiBold" Margin="0,2,0,0" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" Text="🌐" FontSize="24" VerticalAlignment="Center" />
+                </Grid>
+              </Border>
+
+              <!-- Card: Uptime -->
+              <Border Background="{DynamicResource PanelSoftBrush}" CornerRadius="12" Padding="14,10">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel>
+                    <TextBlock x:Name="LblUptime" Text="مدة الاتصال النشط" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+                    <TextBlock x:Name="TxtUptime" Text="00:00:00" FontSize="18" FontWeight="SemiBold" Margin="0,2,0,0" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" Text="⏱" FontSize="24" VerticalAlignment="Center" />
+                </Grid>
+              </Border>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+
+        <!-- Engine Status Box -->
+        <Border Grid.Row="1" Background="{DynamicResource PanelBrush}" CornerRadius="14" Padding="14,10" Margin="0,10,0,0">
+          <StackPanel>
+            <TextBlock x:Name="TxtEngineStatus" Text="حالة المحرك: جاهز للاتصال" Foreground="{DynamicResource MutedBrush}" FontSize="11" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+      </Grid>
     </Grid>
 
-    <Border Grid.Row="2" Background="{DynamicResource PanelBrush}" CornerRadius="13" Padding="15,11">
-      <TextBlock x:Name="FooterText" Text="الإصدار 1.0.0 · لا يغيّر عنوان الإنترنت · يتطلب صلاحية مسؤول" Foreground="{DynamicResource MutedBrush}" HorizontalAlignment="Center" />
+    <!-- Footer -->
+    <Border Grid.Row="2" Background="{DynamicResource PanelBrush}" CornerRadius="12" Padding="14,8">
+      <Grid>
+        <TextBlock x:Name="FooterText" Text="عبور v1.5.1 · تصفية شاملة وتجاوز حجب آمن · مفتوح المصدر" Foreground="{DynamicResource MutedBrush}" FontSize="11" HorizontalAlignment="Center" />
+      </Grid>
     </Border>
   </Grid>
 </Window>
