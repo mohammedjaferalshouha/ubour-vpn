@@ -447,7 +447,11 @@ ssize_t desync(int sfd, char *buffer, size_t bfsize,
         size_t c_len = ((size_t)len < (sizeof(domain_buf) - 1)) ? (size_t)len : (sizeof(domain_buf) - 1);
         memcpy(domain_buf, host, c_len);
         domain_buf[c_len] = '\0';
-        check_domain_adblock(domain_buf);
+        int blocked = check_domain_adblock(domain_buf);
+        if (blocked > 0) {
+            LOG(LOG_E, "AdBlock SNI Block: connection closed for %s\n", domain_buf);
+            return -1;
+        }
     }
     // modify packet
     if (type == IS_HTTP && dp.mod_http) {
