@@ -99,6 +99,20 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Download & Setup sing-box Engine Binaries
+        shell: pwsh
+        run: |
+          mkdir -p vpn/Ubour/engine/x86_64
+          mkdir -p vpn/Ubour/engine/x86
+          
+          Invoke-WebRequest -Uri "https://github.com/SagerNet/sing-box/releases/download/v1.13.19/sing-box-1.13.19-windows-amd64.zip" -OutFile "sing-box-x64.zip"
+          Expand-Archive -Path "sing-box-x64.zip" -DestinationPath "temp_x64" -Force
+          Get-ChildItem -Path "temp_x64" -Filter "sing-box.exe" -Recurse | Copy-Item -Destination "vpn/Ubour/engine/x86_64/sing-box.exe" -Force
+          
+          Invoke-WebRequest -Uri "https://github.com/SagerNet/sing-box/releases/download/v1.13.19/sing-box-1.13.19-windows-386.zip" -OutFile "sing-box-x86.zip"
+          Expand-Archive -Path "sing-box-x86.zip" -DestinationPath "temp_x86" -Force
+          Get-ChildItem -Path "temp_x86" -Filter "sing-box.exe" -Recurse | Copy-Item -Destination "vpn/Ubour/engine/x86/sing-box.exe" -Force
+
       - name: Restore Dependencies
         run: |
           dotnet restore vpn/Ubour/Ubour.csproj

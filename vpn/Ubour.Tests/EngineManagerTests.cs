@@ -1,5 +1,3 @@
-using System;
-using System.IO;
 using Xunit;
 using Ubour;
 
@@ -12,6 +10,7 @@ public class EngineManagerTests
     {
         var manager = new EngineManager();
         Assert.False(manager.IsRunning);
+        Assert.Equal(AppOperationMode.WARP_AND_ADBLOCK, manager.CurrentMode);
     }
 
     [Fact]
@@ -24,14 +23,14 @@ public class EngineManagerTests
     }
 
     [Fact]
-    public void EngineManager_StartWithMissingEngine_ThrowsFileNotFoundException()
+    public void EngineManager_SupportsAllFiveModes()
     {
-        var manager = new EngineManager();
-        var tempEngineDir = Path.Combine(AppContext.BaseDirectory, "engine");
-        
-        if (!Directory.Exists(tempEngineDir))
-        {
-            Assert.Throws<FileNotFoundException>(() => manager.Start());
-        }
+        var modes = Enum.GetValues<AppOperationMode>();
+        Assert.Equal(5, modes.Length);
+        Assert.Contains(AppOperationMode.WARP_AND_ADBLOCK, modes);
+        Assert.Contains(AppOperationMode.DPI_AND_ADBLOCK, modes);
+        Assert.Contains(AppOperationMode.ADBLOCK_ONLY, modes);
+        Assert.Contains(AppOperationMode.DPI_ONLY, modes);
+        Assert.Contains(AppOperationMode.CUSTOM_VLESS, modes);
     }
 }
