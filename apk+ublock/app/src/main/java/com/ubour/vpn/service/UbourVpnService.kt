@@ -115,12 +115,12 @@ class UbourVpnService : VpnService() {
                                 targetHost = "162.159.192.1",
                                 targetPort = 2408
                             )
-                            if (SingboxManager.startWarp(applicationContext, warpConfig)) {
+                            if (SingboxManager.startWarp(applicationContext, warpConfig, enableAdBlock = isAdBlockEnabled)) {
                                 delay(400)
                                 if (SingboxManager.isRunning()) {
                                     socksPort = SingboxManager.SOCKS_PORT
                                     useSingbox = true
-                                    Log.i(TAG, "Sing-box WARP running on port $socksPort")
+                                    Log.i(TAG, "Sing-box WARP running on port $socksPort (AdBlock=$isAdBlockEnabled)")
                                 }
                             }
                         } catch (e: Exception) {
@@ -139,21 +139,42 @@ class UbourVpnService : VpnService() {
                     }
 
                     AppOperationMode.VPN_AND_ADBLOCK -> {
-                        // Direct ByeDPI DPI bypass + AdBlock
-                        socksPort = 1080
+                        // Direct ByeDPI DPI bypass on port 1080 + Sing-box DNS interceptor on port 10809
                         proxyJob = serviceScope.launch(Dispatchers.IO) {
                             byeDpiProxy.startProxy(mode = bypassMode, ip = "127.0.0.1", port = 1080)
                         }
                         delay(300)
+
+                        if (isAdBlockEnabled && SingboxManager.startVpnAndAdBlock(applicationContext, byedpiPort = 1080)) {
+                            delay(300)
+                            if (SingboxManager.isRunning()) {
+                                socksPort = SingboxManager.SOCKS_PORT
+                                useSingbox = true
+                                Log.i(TAG, "Sing-box VPN+AdBlock dispatcher running on port $socksPort")
+                            }
+                        }
+                        if (!useSingbox) {
+                            socksPort = 1080
+                        }
                     }
 
                     AppOperationMode.ADBLOCK_ONLY -> {
-                        // AdBlock Only (ByeDPI in mode 0 without DPI desync)
-                        socksPort = 1080
-                        proxyJob = serviceScope.launch(Dispatchers.IO) {
-                            byeDpiProxy.startProxy(mode = 0, ip = "127.0.0.1", port = 1080)
+                        // AdBlock Only (Sing-box Direct routing + DNS filter on port 10809)
+                        if (SingboxManager.startAdBlockOnly(applicationContext)) {
+                            delay(300)
+                            if (SingboxManager.isRunning()) {
+                                socksPort = SingboxManager.SOCKS_PORT
+                                useSingbox = true
+                                Log.i(TAG, "Sing-box AdBlock Only dispatcher running on port $socksPort")
+                            }
                         }
-                        delay(300)
+                        if (!useSingbox) {
+                            socksPort = 1080
+                            proxyJob = serviceScope.launch(Dispatchers.IO) {
+                                byeDpiProxy.startProxy(mode = 0, ip = "127.0.0.1", port = 1080)
+                            }
+                            delay(300)
+                        }
                     }
 
                     AppOperationMode.VPN_ONLY -> {
@@ -169,12 +190,12 @@ class UbourVpnService : VpnService() {
                         // Custom VLESS Reality server on port 10809
                         val prefs = getSharedPreferences("ubour_settings", Context.MODE_PRIVATE)
                         val vlessUrl = prefs.getString("custom_vless_url", "") ?: ""
-                        if (vlessUrl.isNotBlank() && SingboxManager.startVless(applicationContext, vlessUrl)) {
+                        if (vlessUrl.isNotBlank() && SingboxManager.startVless(applicationContext, vlessUrl, enableAdBlock = isAdBlockEnabled)) {
                             delay(400)
                             if (SingboxManager.isRunning()) {
                                 socksPort = SingboxManager.SOCKS_PORT
                                 useSingbox = true
-                                Log.i(TAG, "Sing-box VLESS proxy running on port $socksPort")
+                                Log.i(TAG, "Sing-box VLESS proxy running on port $socksPort (AdBlock=$isAdBlockEnabled)")
                             }
                         }
                         if (!useSingbox) {
@@ -189,13 +210,14 @@ class UbourVpnService : VpnService() {
                 }
 
                 // 3. Prepare YAML config for hev-socks5-tunnel
+                val udpMode = if (socksPort == SingboxManager.SOCKS_PORT) "'udp'" else "'none'"
                 val tun2socksConfig = """
                 tunnel:
                   mtu: 1500
                 socks5:
                   port: $socksPort
                   address: 127.0.0.1
-                  udp: 'none'
+                  udp: $udpMode
                 misc:
                   task-stack-size: 81920
                 """.trimIndent()
@@ -211,13 +233,16 @@ class UbourVpnService : VpnService() {
                     addAddress("10.10.10.10", 32)
                     addRoutesExcludingSubnets(this, effectiveDns)
 
+                    if (needsAdBlock) {
+                        addDnsServer("10.10.10.10")
+                    }
                     addDnsServer(effectiveDns)
                     val secondaryDns = if (opMode == AppOperationMode.WARP_AND_ADBLOCK) {
                         "1.0.0.1"
                     } else {
                         SECONDARY_DNS_MAP[effectiveDns] ?: (if (effectiveDns != "8.8.4.4") "8.8.4.4" else "8.8.8.8")
                     }
-                    if (secondaryDns != effectiveDns) {
+                    if (secondaryDns != effectiveDns && secondaryDns != "10.10.10.10") {
                         addDnsServer(secondaryDns)
                     }
 
