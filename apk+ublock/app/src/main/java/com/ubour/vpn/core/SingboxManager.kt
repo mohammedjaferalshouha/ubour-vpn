@@ -13,7 +13,17 @@ object SingboxManager {
     const val SOCKS_PORT = 10809
 
     fun isRunning(): Boolean {
-        return process?.isAlive == true
+        val p = process ?: return false
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            p.isAlive
+        } else {
+            try {
+                p.exitValue()
+                false
+            } catch (e: IllegalThreadStateException) {
+                true
+            }
+        }
     }
 
     fun startWarp(context: Context, warpConfig: WarpConfig, enableAdBlock: Boolean = true): Boolean {
