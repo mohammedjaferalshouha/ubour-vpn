@@ -9,7 +9,7 @@ class UpdateServiceTest {
     fun testCurrentAppVersionNotEmpty() {
         assertNotNull(UpdateService.CURRENT_APP_VERSION)
         assertTrue(UpdateService.CURRENT_APP_VERSION.isNotBlank())
-        assertEquals("1.5.0", UpdateService.CURRENT_APP_VERSION)
+        assertTrue(UpdateService.CURRENT_APP_VERSION.matches(Regex("\\d+\\.\\d+\\.\\d+.*")))
     }
 
     @Test

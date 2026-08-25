@@ -406,7 +406,7 @@ class UbourVpnService : VpnService() {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .build()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(
                 UbourApplication.NOTIFICATION_ID,
                 notification,
