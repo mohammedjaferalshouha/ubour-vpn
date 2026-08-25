@@ -178,12 +178,22 @@ class UbourVpnService : VpnService() {
                     }
 
                     AppOperationMode.VPN_ONLY -> {
-                        // Direct ByeDPI DPI bypass only without filtering
-                        socksPort = 1080
+                        // Direct ByeDPI DPI bypass with Singbox dispatcher for reliable UDP & DNS
                         proxyJob = serviceScope.launch(Dispatchers.IO) {
                             byeDpiProxy.startProxy(mode = bypassMode, ip = "127.0.0.1", port = 1080)
                         }
                         delay(300)
+                        if (SingboxManager.startVpnOnly(applicationContext, byedpiPort = 1080)) {
+                            delay(300)
+                            if (SingboxManager.isRunning()) {
+                                socksPort = SingboxManager.SOCKS_PORT
+                                useSingbox = true
+                                Log.i(TAG, "Sing-box VPN Only dispatcher running on port $socksPort")
+                            }
+                        }
+                        if (!useSingbox) {
+                            socksPort = 1080
+                        }
                     }
 
                     AppOperationMode.CUSTOM_VLESS -> {
@@ -231,12 +241,12 @@ class UbourVpnService : VpnService() {
                     setSession(getString(R.string.app_name))
                     setMtu(1500)
                     addAddress("10.10.10.10", 32)
-                    addRoutesExcludingSubnets(this, effectiveDns)
+                    addRoute("0.0.0.0", 0)
 
-                    if (needsAdBlock) {
-                        addDnsServer("10.10.10.10")
+                    addDnsServer("10.10.10.10")
+                    if (effectiveDns != "10.10.10.10") {
+                        addDnsServer(effectiveDns)
                     }
-                    addDnsServer(effectiveDns)
                     val secondaryDns = if (opMode == AppOperationMode.WARP_AND_ADBLOCK) {
                         "1.0.0.1"
                     } else {

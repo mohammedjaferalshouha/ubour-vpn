@@ -44,6 +44,12 @@ object SingboxManager {
         return startProcess(context, configFile)
     }
 
+    fun startVpnOnly(context: Context, byedpiPort: Int = 1080): Boolean {
+        stop()
+        val configFile = generateVpnOnlyConfig(context, byedpiPort)
+        return startProcess(context, configFile)
+    }
+
     fun startVless(context: Context, vlessUrl: String, enableAdBlock: Boolean = true): Boolean {
         stop()
         val configFile = generateVlessConfig(context, vlessUrl, enableAdBlock) ?: return false
@@ -128,8 +134,8 @@ object SingboxManager {
         }
 
         val peerObj = JSONObject().apply {
-            put("server", warp.endpointHost)
-            put("server_port", warp.endpointPort)
+            put("address", warp.endpointHost)
+            put("port", warp.endpointPort)
             put("public_key", warp.peerPublicKey)
             put("allowed_ips", JSONArray().apply {
                 put("0.0.0.0/0")
@@ -142,35 +148,35 @@ object SingboxManager {
             }
         }
 
-        val warpOutbound = JSONObject().apply {
+        val warpEndpoint = JSONObject().apply {
             put("type", "wireguard")
-            put("tag", "warp-out")
-            put("server", warp.endpointHost)
-            put("server_port", warp.endpointPort)
-            put("local_address", addrs)
+            put("tag", "warp-ep")
+            put("address", addrs)
             put("private_key", warp.privateKey)
-            put("peer_public_key", warp.peerPublicKey)
-            if (warp.reserved.size == 3) {
-                put("reserved", JSONArray().apply {
-                    warp.reserved.forEach { put(it) }
-                })
-            }
             put("peers", JSONArray().apply {
                 put(peerObj)
             })
             put("mtu", 1280)
         }
 
-        val dnsFilterOutbound = JSONObject().apply {
-            put("type", "direct")
-            put("tag", "dns-filter-out")
-            put("override_address", "127.0.0.1")
-            put("override_port", 5353)
-        }
-
         val root = JSONObject().apply {
             put("log", JSONObject().apply {
                 put("level", "info")
+            })
+            put("endpoints", JSONArray().apply {
+                put(warpEndpoint)
+            })
+            put("dns", JSONObject().apply {
+                put("servers", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("tag", "dns-filter")
+                        put("type", "udp")
+                        put("server", "127.0.0.1")
+                        put("server_port", 5353)
+                        put("detour", "direct")
+                    })
+                })
+                put("final", "dns-filter")
             })
             put("inbounds", JSONArray().apply {
                 put(JSONObject().apply {
@@ -181,10 +187,6 @@ object SingboxManager {
                 })
             })
             put("outbounds", JSONArray().apply {
-                put(warpOutbound)
-                if (enableAdBlock) {
-                    put(dnsFilterOutbound)
-                }
                 put(JSONObject().apply {
                     put("type", "direct")
                     put("tag", "direct")
@@ -195,15 +197,15 @@ object SingboxManager {
                     if (enableAdBlock) {
                         put(JSONObject().apply {
                             put("port", JSONArray().apply { put(53) })
-                            put("outbound", "dns-filter-out")
+                            put("action", "hijack-dns")
                         })
                     }
                     put(JSONObject().apply {
                         put("inbound", JSONArray().apply { put("socks-in") })
-                        put("outbound", "warp-out")
+                        put("outbound", "warp-ep")
                     })
                 })
-                put("final", "warp-out")
+                put("final", "warp-ep")
             })
         }
 
@@ -213,16 +215,21 @@ object SingboxManager {
     }
 
     private fun generateAdBlockOnlyConfig(context: Context): File {
-        val dnsFilterOutbound = JSONObject().apply {
-            put("type", "direct")
-            put("tag", "dns-filter-out")
-            put("override_address", "127.0.0.1")
-            put("override_port", 5353)
-        }
-
         val root = JSONObject().apply {
             put("log", JSONObject().apply {
                 put("level", "info")
+            })
+            put("dns", JSONObject().apply {
+                put("servers", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("tag", "dns-filter")
+                        put("type", "udp")
+                        put("server", "127.0.0.1")
+                        put("server_port", 5353)
+                        put("detour", "direct")
+                    })
+                })
+                put("final", "dns-filter")
             })
             put("inbounds", JSONArray().apply {
                 put(JSONObject().apply {
@@ -237,13 +244,12 @@ object SingboxManager {
                     put("type", "direct")
                     put("tag", "direct")
                 })
-                put(dnsFilterOutbound)
             })
             put("route", JSONObject().apply {
                 put("rules", JSONArray().apply {
                     put(JSONObject().apply {
                         put("port", JSONArray().apply { put(53) })
-                        put("outbound", "dns-filter-out")
+                        put("action", "hijack-dns")
                     })
                     put(JSONObject().apply {
                         put("inbound", JSONArray().apply { put("socks-in") })
@@ -267,11 +273,63 @@ object SingboxManager {
             put("server_port", byedpiPort)
         }
 
-        val dnsFilterOutbound = JSONObject().apply {
-            put("type", "direct")
-            put("tag", "dns-filter-out")
-            put("override_address", "127.0.0.1")
-            put("override_port", 5353)
+        val root = JSONObject().apply {
+            put("log", JSONObject().apply {
+                put("level", "info")
+            })
+            put("dns", JSONObject().apply {
+                put("servers", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("tag", "dns-filter")
+                        put("type", "udp")
+                        put("server", "127.0.0.1")
+                        put("server_port", 5353)
+                        put("detour", "direct")
+                    })
+                })
+                put("final", "dns-filter")
+            })
+            put("inbounds", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("type", "socks")
+                    put("tag", "socks-in")
+                    put("listen", "127.0.0.1")
+                    put("listen_port", SOCKS_PORT)
+                })
+            })
+            put("outbounds", JSONArray().apply {
+                put(byedpiOutbound)
+                put(JSONObject().apply {
+                    put("type", "direct")
+                    put("tag", "direct")
+                })
+            })
+            put("route", JSONObject().apply {
+                put("rules", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("port", JSONArray().apply { put(53) })
+                        put("action", "hijack-dns")
+                    })
+                    put(JSONObject().apply {
+                        put("inbound", JSONArray().apply { put("socks-in") })
+                        put("outbound", "byedpi-out")
+                    })
+                })
+                put("final", "byedpi-out")
+            })
+        }
+
+        val configFile = File(context.filesDir, "singbox_vpn_adblock.json")
+        configFile.writeText(root.toString(2))
+        return configFile
+    }
+
+    private fun generateVpnOnlyConfig(context: Context, byedpiPort: Int): File {
+        val byedpiOutbound = JSONObject().apply {
+            put("type", "socks")
+            put("tag", "byedpi-out")
+            put("server", "127.0.0.1")
+            put("server_port", byedpiPort)
         }
 
         val root = JSONObject().apply {
@@ -288,7 +346,6 @@ object SingboxManager {
             })
             put("outbounds", JSONArray().apply {
                 put(byedpiOutbound)
-                put(dnsFilterOutbound)
                 put(JSONObject().apply {
                     put("type", "direct")
                     put("tag", "direct")
@@ -298,7 +355,7 @@ object SingboxManager {
                 put("rules", JSONArray().apply {
                     put(JSONObject().apply {
                         put("port", JSONArray().apply { put(53) })
-                        put("outbound", "dns-filter-out")
+                        put("outbound", "direct")
                     })
                     put(JSONObject().apply {
                         put("inbound", JSONArray().apply { put("socks-in") })
@@ -309,7 +366,7 @@ object SingboxManager {
             })
         }
 
-        val configFile = File(context.filesDir, "singbox_vpn_adblock.json")
+        val configFile = File(context.filesDir, "singbox_vpn_only.json")
         configFile.writeText(root.toString(2))
         return configFile
     }
@@ -348,15 +405,44 @@ object SingboxManager {
                 }
             }
 
-            val dnsFilterOutbound = JSONObject().apply {
-                put("type", "direct")
-                put("tag", "dns-filter-out")
-                put("override_address", "127.0.0.1")
-                put("override_port", 5353)
+            val vlessOutbound = JSONObject().apply {
+                put("type", "vless")
+                put("tag", "vless-out")
+                put("server", host)
+                put("server_port", port)
+                put("uuid", uuid)
+                put("flow", "xtls-rprx-vision")
+                put("tls", JSONObject().apply {
+                    put("enabled", true)
+                    put("server_name", sni)
+                    put("utls", JSONObject().apply {
+                        put("enabled", true)
+                        put("fingerprint", fp)
+                    })
+                    if (pbk.isNotBlank()) {
+                        put("reality", JSONObject().apply {
+                            put("enabled", true)
+                            put("public_key", pbk)
+                            put("short_id", sid)
+                        })
+                    }
+                })
             }
 
             val root = JSONObject().apply {
                 put("log", JSONObject().put("level", "info"))
+                put("dns", JSONObject().apply {
+                    put("servers", JSONArray().apply {
+                        put(JSONObject().apply {
+                            put("tag", "dns-filter")
+                            put("type", "udp")
+                            put("server", "127.0.0.1")
+                            put("server_port", 5353)
+                            put("detour", "direct")
+                        })
+                    })
+                    put("final", "dns-filter")
+                })
                 put("inbounds", JSONArray().apply {
                     put(JSONObject().apply {
                         put("type", "socks")
@@ -366,39 +452,18 @@ object SingboxManager {
                     })
                 })
                 put("outbounds", JSONArray().apply {
+                    put(vlessOutbound)
                     put(JSONObject().apply {
-                        put("type", "vless")
-                        put("tag", "vless-out")
-                        put("server", host)
-                        put("server_port", port)
-                        put("uuid", uuid)
-                        put("flow", "xtls-rprx-vision")
-                        put("tls", JSONObject().apply {
-                            put("enabled", true)
-                            put("server_name", sni)
-                            put("utls", JSONObject().apply {
-                                put("enabled", true)
-                                put("fingerprint", fp)
-                            })
-                            if (pbk.isNotBlank()) {
-                                put("reality", JSONObject().apply {
-                                    put("enabled", true)
-                                    put("public_key", pbk)
-                                    put("short_id", sid)
-                                })
-                            }
-                        })
+                        put("type", "direct")
+                        put("tag", "direct")
                     })
-                    if (enableAdBlock) {
-                        put(dnsFilterOutbound)
-                    }
                 })
                 put("route", JSONObject().apply {
                     put("rules", JSONArray().apply {
                         if (enableAdBlock) {
                             put(JSONObject().apply {
                                 put("port", JSONArray().apply { put(53) })
-                                put("outbound", "dns-filter-out")
+                                put("action", "hijack-dns")
                             })
                         }
                         put(JSONObject().apply {

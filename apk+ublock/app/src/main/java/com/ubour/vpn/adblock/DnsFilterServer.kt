@@ -120,56 +120,82 @@ class DnsFilterServer(
     private fun createBlockedResponse(query: ByteArray): ByteArray {
         if (query.size < 12) return query
 
-        // Find end of Question section
+        // Find end of Question section & parse QTYPE
         var offset = 12
         while (offset < query.size) {
             val len = query[offset].toInt() and 0xFF
             if (len == 0) {
-                offset += 5 // Skip 0x00 + QTYPE (2) + QCLASS (2)
+                offset += 1
                 break
             }
             offset += len + 1
         }
 
-        val questionLength = offset.coerceAtMost(query.size)
-        val response = ByteBuffer.allocate(questionLength + 16)
+        if (offset + 4 > query.size) return query
 
-        // 1. Transaction ID
-        response.put(query[0])
-        response.put(query[1])
+        val qtype = ((query[offset].toInt() and 0xFF) shl 8) or (query[offset + 1].toInt() and 0xFF)
+        val questionLength = offset + 4 // QNAME + 0x00 + QTYPE (2) + QCLASS (2)
 
-        // 2. Flags: Standard query response, No error (0x8180)
-        response.put(0x81.toByte())
-        response.put(0x80.toByte())
-
-        // 3. QDCOUNT (1)
-        response.put(0x00.toByte())
-        response.put(0x01.toByte())
-
-        // 4. ANCOUNT (1)
-        response.put(0x00.toByte())
-        response.put(0x01.toByte())
-
-        // 5. NSCOUNT (0), ARCOUNT (0)
-        response.putShort(0)
-        response.putShort(0)
-
-        // 6. Copy Question Section
-        response.put(query, 12, questionLength - 12)
-
-        // 7. Answer Section (Pointer to question name, Type A, Class IN, TTL 300, 0.0.0.0)
-        response.put(0xC0.toByte())
-        response.put(0x0C.toByte()) // Offset 12 (QNAME pointer)
-        response.putShort(0x0001)   // Type A
-        response.putShort(0x0001)   // Class IN
-        response.putInt(300)        // TTL
-        response.putShort(4)        // RDLENGTH (4 bytes)
-        response.put(0x00.toByte()) // 0.0.0.0
-        response.put(0x00.toByte())
-        response.put(0x00.toByte())
-        response.put(0x00.toByte())
-
-        return response.array()
+        return when (qtype) {
+            1 -> { // Type A (IPv4) -> 0.0.0.0
+                val response = ByteBuffer.allocate(questionLength + 16)
+                response.put(query[0])
+                response.put(query[1])
+                response.put(0x81.toByte())
+                response.put(0x80.toByte()) // Flags: standard response, NOERROR
+                response.putShort(1) // QDCOUNT = 1
+                response.putShort(1) // ANCOUNT = 1
+                response.putShort(0) // NSCOUNT = 0
+                response.putShort(0) // ARCOUNT = 0
+                response.put(query, 12, questionLength - 12) // Question section
+                // Answer
+                response.put(0xC0.toByte())
+                response.put(0x0C.toByte()) // Pointer to QNAME
+                response.putShort(1) // Type A
+                response.putShort(1) // Class IN
+                response.putInt(300) // TTL 300
+                response.putShort(4) // RDLENGTH 4
+                response.put(0.toByte())
+                response.put(0.toByte())
+                response.put(0.toByte())
+                response.put(0.toByte())
+                response.array()
+            }
+            28 -> { // Type AAAA (IPv6) -> ::0
+                val response = ByteBuffer.allocate(questionLength + 28)
+                response.put(query[0])
+                response.put(query[1])
+                response.put(0x81.toByte())
+                response.put(0x80.toByte()) // Flags: standard response, NOERROR
+                response.putShort(1) // QDCOUNT = 1
+                response.putShort(1) // ANCOUNT = 1
+                response.putShort(0)
+                response.putShort(0)
+                response.put(query, 12, questionLength - 12) // Question section
+                // Answer
+                response.put(0xC0.toByte())
+                response.put(0x0C.toByte()) // Pointer to QNAME
+                response.putShort(28) // Type AAAA
+                response.putShort(1) // Class IN
+                response.putInt(300) // TTL 300
+                response.putShort(16) // RDLENGTH 16
+                for (i in 0 until 16) response.put(0.toByte())
+                response.array()
+            }
+            else -> { // HTTPS (65), CNAME, TXT, etc. -> NOERROR with 0 answers (NODATA)
+                val response = ByteBuffer.allocate(questionLength)
+                response.put(query[0])
+                response.put(query[1])
+                response.put(0x81.toByte())
+                response.put(0x80.toByte()) // Flags: standard response, NOERROR
+                response.putShort(1) // QDCOUNT = 1
+                response.putShort(0) // ANCOUNT = 0
+                response.putShort(0)
+                response.putShort(0)
+                response.put(query, 12, questionLength - 12)
+                response.array()
+            }
+        }
     }
 
     fun stop() {

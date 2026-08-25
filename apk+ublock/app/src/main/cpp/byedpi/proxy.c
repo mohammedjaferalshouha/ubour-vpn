@@ -266,8 +266,18 @@ int s5_get_addr(char *buffer, size_t n,
             if (!params.resolve) {
                 return -S_ER_ATP;
             }
-            if (r->id.len < 3 || 
-                    resolve(r->id.domain, r->id.len, addr, type)) {
+            if (r->id.len < 3) {
+                return -S_ER_HOST;
+            }
+            char s5_domain[256];
+            size_t sdlen = (size_t)(r->id.len < 255 ? r->id.len : 255);
+            memcpy(s5_domain, r->id.domain, sdlen);
+            s5_domain[sdlen] = '\0';
+            if (check_domain_adblock(s5_domain) > 0) {
+                LOG(LOG_E, "AdBlock SOCKS5 CONNECT: blocked %s\n", s5_domain);
+                return -S_ER_CONN;
+            }
+            if (resolve(r->id.domain, r->id.len, addr, type)) {
                 LOG(LOG_E, "not resolved: %.*s\n", r->id.len, r->id.domain);
                 return -S_ER_HOST;
             }
@@ -632,10 +642,16 @@ int on_tunnel(struct poolhd *pool, struct eval *val,
                     size_t c_len = ((size_t)hlen < (sizeof(domain_buf) - 1)) ? (size_t)hlen : (sizeof(domain_buf) - 1);
                     memcpy(domain_buf, host, c_len);
                     domain_buf[c_len] = '\0';
-                    check_domain_adblock(domain_buf);
+                    if (check_domain_adblock(domain_buf) > 0) {
+                        LOG(LOG_E, "AdBlock on_tunnel: blocked %s\n", domain_buf);
+                        return -1;
+                    }
                 }
             } else if (parse_dns_qname(buffer, (size_t)n, dns_qname, sizeof(dns_qname))) {
-                check_domain_adblock(dns_qname);
+                if (check_domain_adblock(dns_qname) > 0) {
+                    LOG(LOG_E, "AdBlock DNS parse: blocked %s\n", dns_qname);
+                    return -1;
+                }
             }
         }
         
@@ -732,7 +748,10 @@ int on_udp_tunnel(struct eval *val, char *buffer, size_t bfsize)
             if (n - offs >= 12) {
                 char dns_domain[256];
                 if (parse_dns_qname(data + offs, (size_t)(n - offs), dns_domain, sizeof(dns_domain))) {
-                    check_domain_adblock(dns_domain);
+                    if (check_domain_adblock(dns_domain) > 0) {
+                        LOG(LOG_E, "AdBlock UDP DNS: dropped %s\n", dns_domain);
+                        continue;
+                    }
                 }
             }
             ns = udp_hook(val->pair, data + offs, bfsize - offs, n - offs, 
