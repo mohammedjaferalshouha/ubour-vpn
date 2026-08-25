@@ -1,3 +1,13 @@
+@@||www.google.com^
+@@||github.com^
+@@||githubusercontent.com^
+@@||www.cloudflare.com^
+@@||www.microsoft.com^
+@@||www.apple.com^
+@@||wikipedia.org^
+@@||www.youtube.com^
+@@||web.whatsapp.com^
+@@||telegram.org^
 # Title: Ubour Ultra AdBlock & Privacy Filter (Comprehensive Built-in Rules)
 # Total Rules: 182957
 
@@ -27857,7 +27867,6 @@
 ||clouderrorreporting.googleapis.com^
 ||cloudfenceai.com^
 ||cloudfilt.com^
-||cloudflare.com^
 ||cloudflareinsights.com^
 ||cloudflrcdn.com^
 ||cloudfrale.com^
@@ -55771,7 +55780,6 @@
 ||giteimago.cfd^
 ||github-8-0.net.mydays.de^
 ||github-scanner.com^
-||github.com^
 ||github.gpuzelenograd.cloudns.be^
 ||github.io^
 ||githuhey.com^
@@ -182958,3 +182966,8 @@
 |||load.ss.^
 |||load.sst.^
 |||piwik.^
+
+||telemetry.microsoft.com^
+||events.data.microsoft.com^
+||v10.events.data.microsoft.com^
+||v20.events.data.microsoft.com^

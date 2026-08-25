@@ -11,6 +11,7 @@
     <SolidColorBrush x:Key="AccentBrush" Color="#32C6B8" />
     <SolidColorBrush x:Key="AccentTextBrush" Color="#06201D" />
     <SolidColorBrush x:Key="PanelSelectedBrush" Color="#1E4069" />
+    <SolidColorBrush x:Key="DangerBrush" Color="#E74C3C" />
     <SolidColorBrush x:Key="WarningBrush" Color="#F39C12" />
   </Application.Resources>
 </Application>
