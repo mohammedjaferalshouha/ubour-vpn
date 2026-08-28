@@ -12,7 +12,8 @@ class DnsFilterServer(
     private var upstreamDns: String = "8.8.8.8",
     private val upstreamPort: Int = 53,
     private val localPort: Int = 5353,
-    private val socketProtector: ((DatagramSocket) -> Boolean)? = null
+    private val socketProtector: ((DatagramSocket) -> Boolean)? = null,
+    private val enableFiltering: Boolean = true
 ) {
     private val isRunning = AtomicBoolean(false)
     private var serverSocket: DatagramSocket? = null
@@ -30,7 +31,7 @@ class DnsFilterServer(
             serverSocket = DatagramSocket(localPort, InetAddress.getByName("127.0.0.1")).apply {
                 soTimeout = 2000
             }
-            Log.i(TAG, "DNS Filter Server started on 127.0.0.1:$localPort (Upstream: $upstreamDns)")
+            Log.i(TAG, "DNS Filter Server started on 127.0.0.1:$localPort (Upstream: $upstreamDns, Filtering: $enableFiltering)")
 
             serverJob = scope.launch {
                 val buffer = ByteArray(4096)
@@ -59,12 +60,14 @@ class DnsFilterServer(
 
     private fun handleDnsQuery(data: ByteArray, clientAddress: InetAddress, clientPort: Int) {
         try {
-            val qname = parseQName(data)
-            if (qname != null && AdBlockEngine.isDomainBlocked(qname)) {
-                Log.d(TAG, "🚫 Blocked DNS query for: $qname")
-                val blockedResponse = createBlockedResponse(data)
-                sendPacket(blockedResponse, clientAddress, clientPort)
-                return
+            if (enableFiltering) {
+                val qname = parseQName(data)
+                if (qname != null && AdBlockEngine.isDomainBlocked(qname)) {
+                    Log.d(TAG, "🚫 Blocked DNS query for: $qname")
+                    val blockedResponse = createBlockedResponse(data)
+                    sendPacket(blockedResponse, clientAddress, clientPort)
+                    return
+                }
             }
 
             // Forward to upstream DNS

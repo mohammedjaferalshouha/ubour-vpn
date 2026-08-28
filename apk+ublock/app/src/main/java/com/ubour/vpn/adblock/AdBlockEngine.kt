@@ -53,6 +53,9 @@ object AdBlockEngine {
     val totalRules: Int get() = blockedHashes.size
 
     @Volatile
+    var isAdBlockActive = false
+
+    @Volatile
     var isInitialized = false
         private set
 
@@ -89,6 +92,7 @@ object AdBlockEngine {
         blockedHashes = prepareSortedArray(blockedList)
         whiteListHashes = prepareSortedArray(whiteList)
         isInitialized = true
+        isAdBlockActive = true
     }
 
     suspend fun initialize(context: Context) = withContext(Dispatchers.IO) {
@@ -198,6 +202,7 @@ object AdBlockEngine {
      * Supports exact match and subdomain hierarchical matching in O(log N) nanosecond time.
      */
     fun isDomainBlocked(rawDomain: String): Boolean {
+        if (!isAdBlockActive) return false
         _totalQueries.incrementAndGet()
         val domain = rawDomain.trim().lowercase().removeSuffix(".")
         if (domain.isEmpty()) return false
@@ -211,6 +216,17 @@ object AdBlockEngine {
             if (Arrays.binarySearch(localWhiteList, domainHash) >= 0) {
                 return false
             }
+        }
+
+        // Essential service domains and user content (Avatars, Profile images, CDN streams)
+        if (domain.contains("googleusercontent.com") || 
+            domain.contains("gstatic.com") || 
+            domain.contains("ggpht.com") || 
+            domain.contains("ytimg.com") ||
+            domain.contains("tiktokcdn.com") ||
+            domain.contains("byteoversea.com") ||
+            domain.contains("ibytedtos.com")) {
+            return false
         }
 
         if (localBlocked.isEmpty()) return false
@@ -249,6 +265,7 @@ object AdBlockEngine {
 
     @JvmStatic
     fun checkDomainFromNative(rawDomain: String): Int {
+        if (!isAdBlockActive) return 0
         val domain = rawDomain.trim().lowercase().removeSuffix(".")
         if (domain.isEmpty()) return 0
         val isBlocked = isDomainBlocked(domain)

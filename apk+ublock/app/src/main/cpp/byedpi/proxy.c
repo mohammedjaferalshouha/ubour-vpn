@@ -145,21 +145,26 @@ int resolve(char *host, int len,
 
 int auth_socks5(int fd, char *buffer, ssize_t n)
 {
-    if (n <= 2 || (uint8_t)buffer[1] != (n - 2)) {
+    if (n < 3) {
+        return -1;
+    }
+    uint8_t nmethods = (uint8_t)buffer[1];
+    if (n < (ssize_t)(2 + nmethods)) {
         return -1;
     }
     uint8_t c = S_AUTH_BAD;
-    for (long i = 2; i < n; i++)
-        if (buffer[i] == S_AUTH_NONE) {
+    for (int i = 0; i < nmethods; i++) {
+        if ((uint8_t)buffer[2 + i] == S_AUTH_NONE) {
             c = S_AUTH_NONE;
             break;
         }
-    buffer[1] = c;
-    if (send(fd, buffer, 2, 0) < 0) {
+    }
+    char resp[2] = { (char)S_VER5, (char)c };
+    if (send(fd, resp, 2, 0) < 0) {
         uniperror("send");
         return -1;
     }
-    return c != S_AUTH_BAD ? 0 : -1;
+    return c != S_AUTH_BAD ? (2 + nmethods) : -1;
 }
 
 
@@ -790,11 +795,17 @@ static inline int on_request(struct poolhd *pool, struct eval *val,
     
     if (*buffer == S_VER5) {
         if (val->flag != FLAG_S5) {
-            if (auth_socks5(val->fd, buffer, n)) {
+            int auth_len = auth_socks5(val->fd, buffer, n);
+            if (auth_len < 0) {
                 return -1;
             }
             val->flag = FLAG_S5;
-            return 0;
+            if (n > auth_len) {
+                memmove(buffer, buffer + auth_len, (size_t)(n - auth_len));
+                n -= auth_len;
+            } else {
+                return 0;
+            }
         }
         if (n < S_SIZE_MIN) {
             LOG(LOG_E, "ss: request to small (%zd)\n", n);
