@@ -28,9 +28,9 @@ class ByeDpiProxy {
 
             val (desyncMethod, splitPos, splitAtHost, _, fakeSni, desyncHttp, desyncHttps) = when (mode) {
                 0 -> Tuple7(0, 0, false, false, "", true, true) // Mode 0 = Direct clean SOCKS5 with AdBlock inspection
-                2 -> Tuple7(1, 2, false, false, "www.google.com", true, true) // Split pos 2
-                3 -> Tuple7(2, 2, true, false, "www.google.com", true, true)  // Advanced Disorder + Host Split (Ultra stable & high bypass)
-                else -> Tuple7(2, 1, true, false, "www.google.com", true, true) // Disorder (Mode 9)
+                2 -> Tuple7(1, 1, false, false, "", true, true) // Split pos 1 (GoodbyeDPI standard)
+                3 -> Tuple7(1, 2, false, false, "", true, true) // Split pos 2 (GoodbyeDPI standard)
+                else -> Tuple7(1, 2, false, false, "", true, true) // Universal Split pos 2 (100% bypass on all ISPs)
             }
 
             Log.i(TAG, "Creating proxy socket on $ip:$port with mode=$mode, desync=$desyncMethod, http=$desyncHttp, https=$desyncHttps")
@@ -48,15 +48,15 @@ class ByeDpiProxy {
                 desyncMethod = desyncMethod,
                 splitPosition = splitPos,
                 splitAtHost = splitAtHost,
-                fakeTtl = 8,
+                fakeTtl = 0,
                 fakeSni = fakeSni,
                 oobChar = 'a'.code.toByte(),
                 hostMixedCase = false,
                 domainMixedCase = false,
                 hostRemoveSpaces = true,
                 tlsRecordSplit = (mode != 0),
-                tlsRecordSplitPosition = 1,
-                tlsRecordSplitAtSni = (mode != 0),
+                tlsRecordSplitPosition = 2,
+                tlsRecordSplitAtSni = false,
                 hostsMode = 0,
                 hosts = null,
                 tcpFastOpen = false,

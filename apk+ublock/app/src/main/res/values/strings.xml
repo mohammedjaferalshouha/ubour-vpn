@@ -26,7 +26,7 @@
     <string name="adblock_switch_label">تفعيل منع وتصفية الإعلانات والتتبع</string>
 
     <string name="op_mode_title">وضع التشغيل الأساسي</string>
-    <string name="op_mode_warp">نفق كلاود فلير العالمي (Cloudflare WARP + منع الإعلانات)</string>
+    <string name="op_mode_warp">نفق كلاود فلير العالمي (Cloudflare WARP)</string>
     <string name="op_mode_full">تجاوز الحجب المباشر + منع الإعلانات (سرعة 100%)</string>
     <string name="op_mode_adblock_only">منع الإعلانات فقط (خفيف على البطارية)</string>
     <string name="op_mode_vpn_only">تجاوز الحجب فقط (بدون تصفية)</string>

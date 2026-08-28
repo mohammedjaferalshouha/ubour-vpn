@@ -307,6 +307,18 @@ object SingboxManager {
             put("log", JSONObject().apply {
                 put("level", "info")
             })
+            put("dns", JSONObject().apply {
+                put("servers", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("tag", "dns-filter")
+                        put("type", "udp")
+                        put("server", "127.0.0.1")
+                        put("server_port", 5353)
+                        put("detour", "direct")
+                    })
+                })
+                put("final", "dns-filter")
+            })
             put("inbounds", JSONArray().apply {
                 put(JSONObject().apply {
                     put("type", "socks")
@@ -325,8 +337,13 @@ object SingboxManager {
             put("route", JSONObject().apply {
                 put("rules", JSONArray().apply {
                     put(JSONObject().apply {
+                        put("network", JSONArray().apply { put("udp") })
+                        put("port", JSONArray().apply { put(443) })
+                        put("action", "reject")
+                    })
+                    put(JSONObject().apply {
                         put("port", JSONArray().apply { put(53) })
-                        put("outbound", "direct")
+                        put("action", "hijack-dns")
                     })
                     put(JSONObject().apply {
                         put("inbound", JSONArray().apply { put("socks-in") })
@@ -446,6 +463,12 @@ object SingboxManager {
 
     private fun buildRouteRules(enableAdBlock: Boolean, outboundTag: String): JSONArray {
         val rules = JSONArray()
+        // 0. Reject QUIC (UDP 443) to force immediate fallback to clean TCP
+        rules.put(JSONObject().apply {
+            put("network", JSONArray().apply { put("udp") })
+            put("port", JSONArray().apply { put(443) })
+            put("action", "reject")
+        })
         if (enableAdBlock) {
             // 1. Hijack standard DNS on port 53 to our local dns-filter
             rules.put(JSONObject().apply {

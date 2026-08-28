@@ -133,31 +133,34 @@ class MainActivity : AppCompatActivity() {
                 binding.rbOpFull.isChecked = true
                 binding.bypassModeCard.visibility = View.VISIBLE
                 binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_emerald))
+                binding.switchAdBlock.isChecked = true
+                binding.switchAdBlock.isEnabled = false
             }
             AppOperationMode.ADBLOCK_ONLY.ordinal -> {
                 binding.rbOpAdBlockOnly.isChecked = true
                 binding.bypassModeCard.visibility = View.GONE
                 binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_shield))
+                binding.switchAdBlock.isChecked = true
+                binding.switchAdBlock.isEnabled = false
             }
             AppOperationMode.VPN_ONLY.ordinal -> {
                 binding.rbOpVpnOnly.isChecked = true
                 binding.bypassModeCard.visibility = View.VISIBLE
                 binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_cyan))
+                binding.switchAdBlock.isChecked = false
+                binding.switchAdBlock.isEnabled = false
             }
             else -> {
                 binding.rbOpWarp.isChecked = true
                 binding.bypassModeCard.visibility = View.GONE
                 binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.cloudflare_orange))
+                binding.switchAdBlock.isChecked = isAdBlockEnabled
+                binding.switchAdBlock.isEnabled = true
             }
         }
 
         binding.switchAdBlock.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("adblock_enabled", isChecked).apply()
-            if (!isChecked) {
-                binding.rbOpVpnOnly.isChecked = true
-            } else if (binding.rbOpVpnOnly.isChecked) {
-                binding.rbOpWarp.isChecked = true
-            }
         }
 
         binding.rgOpModes.setOnCheckedChangeListener { _, checkedId ->
@@ -165,33 +168,30 @@ class MainActivity : AppCompatActivity() {
                 R.id.rbOpFull -> {
                     binding.bypassModeCard.visibility = View.VISIBLE
                     binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_emerald))
-                    if (!binding.switchAdBlock.isChecked) {
-                        binding.switchAdBlock.isChecked = true
-                    }
+                    binding.switchAdBlock.isChecked = true
+                    binding.switchAdBlock.isEnabled = false
                     AppOperationMode.VPN_AND_ADBLOCK
                 }
                 R.id.rbOpAdBlockOnly -> {
                     binding.bypassModeCard.visibility = View.GONE
                     binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_shield))
-                    if (!binding.switchAdBlock.isChecked) {
-                        binding.switchAdBlock.isChecked = true
-                    }
+                    binding.switchAdBlock.isChecked = true
+                    binding.switchAdBlock.isEnabled = false
                     AppOperationMode.ADBLOCK_ONLY
                 }
                 R.id.rbOpVpnOnly -> {
                     binding.bypassModeCard.visibility = View.VISIBLE
                     binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_cyan))
-                    if (binding.switchAdBlock.isChecked) {
-                        binding.switchAdBlock.isChecked = false
-                    }
+                    binding.switchAdBlock.isChecked = false
+                    binding.switchAdBlock.isEnabled = false
                     AppOperationMode.VPN_ONLY
                 }
                 else -> {
                     binding.bypassModeCard.visibility = View.GONE
                     binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.cloudflare_orange))
-                    if (!binding.switchAdBlock.isChecked) {
-                        binding.switchAdBlock.isChecked = true
-                    }
+                    val warpAdBlock = prefs.getBoolean("adblock_enabled", true)
+                    binding.switchAdBlock.isChecked = warpAdBlock
+                    binding.switchAdBlock.isEnabled = true
                     AppOperationMode.WARP_AND_ADBLOCK
                 }
             }
@@ -399,7 +399,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setModeControlsEnabled(enabled: Boolean) {
-        binding.switchAdBlock.isEnabled = enabled
+        val isWarp = binding.rbOpWarp.isChecked
+        binding.switchAdBlock.isEnabled = enabled && isWarp
         binding.rbOpWarp.isEnabled = enabled
         binding.rbOpFull.isEnabled = enabled
         binding.rbOpAdBlockOnly.isEnabled = enabled

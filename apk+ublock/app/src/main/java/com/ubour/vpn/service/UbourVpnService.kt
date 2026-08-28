@@ -83,24 +83,24 @@ class UbourVpnService : VpnService() {
                     if (dnsServer.isNotBlank()) dnsServer else DEFAULT_DNS
                 }
 
-                // 1. Initialize AdBlock Engine & DNS Filter Server if enabled
-                val needsAdBlock = (opMode == AppOperationMode.WARP_AND_ADBLOCK || 
-                                   opMode == AppOperationMode.VPN_AND_ADBLOCK || 
-                                   opMode == AppOperationMode.ADBLOCK_ONLY) && isAdBlockEnabled
+                // 1. Initialize AdBlock Engine & DNS Filter Server
+                val isShieldActive = (opMode == AppOperationMode.WARP_AND_ADBLOCK || 
+                                     opMode == AppOperationMode.VPN_AND_ADBLOCK || 
+                                     opMode == AppOperationMode.ADBLOCK_ONLY) && isAdBlockEnabled
 
-                if (needsAdBlock) {
+                AdBlockEngine.isAdBlockActive = isShieldActive
+
+                if (isShieldActive) {
                     AdBlockEngine.initialize(applicationContext)
-                    dnsFilterServer = DnsFilterServer(
-                        upstreamDns = effectiveDns,
-                        socketProtector = { s -> protect(s) }
-                    ).apply {
-                        start()
-                    }
-                    Log.i(TAG, "DnsFilterServer started with upstream: $effectiveDns")
-                } else {
-                    dnsFilterServer?.stop()
-                    dnsFilterServer = null
                 }
+                dnsFilterServer = DnsFilterServer(
+                    upstreamDns = effectiveDns,
+                    socketProtector = { s -> protect(s) },
+                    enableFiltering = isShieldActive
+                ).apply {
+                    start()
+                }
+                Log.i(TAG, "DnsFilterServer started with upstream: $effectiveDns (ShieldActive=$isShieldActive)")
 
                 // 2. Start proxy core based on operation mode
                 var socksPort = 1080
@@ -307,6 +307,7 @@ class UbourVpnService : VpnService() {
         mutex.withLock {
             Log.i(TAG, "Stopping VPN service...")
             VpnStateManager.updateState(VpnState.DISCONNECTING)
+            AdBlockEngine.isAdBlockActive = false
             statsJob?.cancel()
             statsJob = null
 
