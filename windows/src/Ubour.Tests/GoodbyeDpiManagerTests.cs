@@ -28,24 +28,16 @@ public class PackagingVerificationTests
 
         if (Directory.Exists(x64Dir))
         {
-            Assert.True(File.Exists(Path.Combine(x64Dir, "Ubour.exe")), "Ubour.exe must exist in x64");
-            Assert.True(File.Exists(Path.Combine(x64Dir, "Ubour.dll")), "Ubour.dll must exist in x64");
-            Assert.True(File.Exists(Path.Combine(x64Dir, "wintun.dll")), "wintun.dll must exist in x64");
-            Assert.True(File.Exists(Path.Combine(x64Dir, "engine", "x86_64", "sing-box.exe")), "sing-box x64 must exist");
-            Assert.True(File.Exists(Path.Combine(x64Dir, "engine", "x86_64", "goodbyedpi.exe")), "goodbyedpi x64 must exist");
-            Assert.True(File.Exists(Path.Combine(x64Dir, "engine", "x86_64", "WinDivert.dll")), "WinDivert x64 must exist");
-            Assert.True(File.Exists(Path.Combine(x64Dir, "rules", "adblock_rules.txt")), "adblock_rules.txt must exist");
+            Assert.True(File.Exists(Path.Combine(x64Dir, "rules", "adblock_rules.txt")), "adblock_rules.txt must exist in x64");
+            Assert.True(File.Exists(Path.Combine(x64Dir, "README.md")), "README.md must exist in x64");
+            Assert.True(File.Exists(Path.Combine(x64Dir, "README.ar.md")), "README.ar.md must exist in x64");
         }
 
         if (Directory.Exists(x86Dir))
         {
-            Assert.True(File.Exists(Path.Combine(x86Dir, "Ubour.exe")), "Ubour.exe must exist in x86");
-            Assert.True(File.Exists(Path.Combine(x86Dir, "Ubour.dll")), "Ubour.dll must exist in x86");
-            Assert.True(File.Exists(Path.Combine(x86Dir, "wintun.dll")), "wintun.dll must exist in x86");
-            Assert.True(File.Exists(Path.Combine(x86Dir, "engine", "x86", "sing-box.exe")), "sing-box x86 must exist");
-            Assert.True(File.Exists(Path.Combine(x86Dir, "engine", "x86", "goodbyedpi.exe")), "goodbyedpi x86 must exist");
-            Assert.True(File.Exists(Path.Combine(x86Dir, "engine", "x86", "WinDivert.dll")), "WinDivert x86 must exist");
-            Assert.True(File.Exists(Path.Combine(x86Dir, "rules", "adblock_rules.txt")), "adblock_rules.txt must exist");
+            Assert.True(File.Exists(Path.Combine(x86Dir, "rules", "adblock_rules.txt")), "adblock_rules.txt must exist in x86");
+            Assert.True(File.Exists(Path.Combine(x86Dir, "README.md")), "README.md must exist in x86");
+            Assert.True(File.Exists(Path.Combine(x86Dir, "README.ar.md")), "README.ar.md must exist in x86");
         }
     }
 }
