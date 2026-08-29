@@ -36,7 +36,7 @@ updates:
 
   # Maintain dependencies for Windows .NET projects
   - package-ecosystem: "nuget"
-    directory: "/vpn/Ubour"
+    directory: "/windows/src/Ubour"
     schedule:
       interval: "weekly"
     groups:
@@ -46,7 +46,7 @@ updates:
     open-pull-requests-limit: 5
 
   - package-ecosystem: "nuget"
-    directory: "/vpn/Ubour.Tests"
+    directory: "/windows/src/Ubour.Tests"
     schedule:
       interval: "weekly"
     groups:

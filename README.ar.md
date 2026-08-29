@@ -81,7 +81,7 @@
 * **توقيع رقمي رسمي (Release Signing)**: موقع بمفتاح تشفير رسمي دائم مع دعم شهادات V2 و V3 لقبول التحديثات التلقائية مستقبلاً بسلاسة.
 * **واجهة حديثة Material 3**: دعم كامل للوضع الداكن والفاتح واللغة العربية والإنجليزية.
 
-### 💻 تطبيق الكمبيوتر لويندوز (`vpn/Ubour`)
+### 💻 تطبيق الكمبيوتر لويندوز (`windows/src/Ubour`)
 * **تكامل كامل مع GoodbyeDPI و WinDivert**: فك الحجب على مستوى نواة ويندوز بزمن استجابة فائق.
 * **أوضاع DPI متعددة**: التبديل الفوري بين الأوضاع الافتراضية والتجزئة المتقدمة.
 * **واجهة عربية أنيقة وسهلة**: تطبيق WPF خفيف يعمل في شريط المهام (System Tray).
@@ -118,14 +118,14 @@ cd ubour-vpn/apk+ublock
 
 ### تطبيق الويندوز
 ```bash
-cd ubour-vpn/vpn
+cd ubour-vpn/windows/src
 
 # تشغيل اختبارات الوحدات
 dotnet test Ubour.Tests/Ubour.Tests.csproj -c Release
 
-# بناء ونشر الحزم الذاتية لويندوز
-dotnet publish Ubour/Ubour.csproj -c Release -r win-x64 --self-contained true
-dotnet publish Ubour/Ubour.csproj -c Release -r win-x86 --self-contained true
+# بناء ونشر الحزم لويندوز
+dotnet publish Ubour/Ubour.csproj -c Release -r win-x64 --self-contained false
+dotnet publish Ubour/Ubour.csproj -c Release -r win-x86 --self-contained false
 ```
 
 ---

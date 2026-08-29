@@ -105,7 +105,7 @@ jobs:
           import urllib.request, zipfile, io, os
 
           for arch, zip_arch in [('x86_64', 'amd64'), ('x86', '386')]:
-              dest_dir = os.path.join('vpn', 'Ubour', 'engine', arch)
+              dest_dir = os.path.join('windows', 'src', 'Ubour', 'engine', arch)
               os.makedirs(dest_dir, exist_ok=True)
               dest_file = os.path.join(dest_dir, 'sing-box.exe')
               url = f'https://github.com/SagerNet/sing-box/releases/download/v1.13.19/sing-box-1.13.19-windows-{zip_arch}.zip'
@@ -121,24 +121,41 @@ jobs:
 
       - name: Restore Dependencies
         run: |
-          dotnet restore vpn/Ubour/Ubour.csproj
-          dotnet restore vpn/Ubour.Tests/Ubour.Tests.csproj
+          dotnet restore windows/src/Ubour/Ubour.csproj
+          dotnet restore windows/src/Ubour.Tests/Ubour.Tests.csproj
 
       - name: Build Windows Client (Release)
         run: |
-          dotnet build vpn/Ubour/Ubour.csproj -c Release --no-restore
+          dotnet build windows/src/Ubour/Ubour.csproj -c Release --no-restore
 
       - name: Run Windows Unit Tests
         run: |
-          dotnet test vpn/Ubour.Tests/Ubour.Tests.csproj -c Release
+          dotnet test windows/src/Ubour.Tests/Ubour.Tests.csproj -c Release
 
-      - name: Publish Windows x64 Self-Contained
+      - name: Publish Windows Packages
+        shell: pwsh
         run: |
-          dotnet publish vpn/Ubour/Ubour.csproj -c Release -r win-x64 --self-contained true -o publish/Ubour-windows-x64
+          mkdir -p publish/Ubour-windows-x64
+          mkdir -p publish/Ubour-windows-x86
+          dotnet publish windows/src/Ubour/Ubour.csproj -c Release -r win-x64 --self-contained false -o publish/Ubour-windows-x64
+          dotnet publish windows/src/Ubour/Ubour.csproj -c Release -r win-x86 --self-contained false -o publish/Ubour-windows-x86
 
-      - name: Publish Windows x86 Self-Contained
-        run: |
-          dotnet publish vpn/Ubour/Ubour.csproj -c Release -r win-x86 --self-contained true -o publish/Ubour-windows-x86
+          # Package x64 Assets
+          Copy-Item -Path 'windows/Ubour-windows-x64/engine' -Destination 'publish/Ubour-windows-x64/engine' -Recurse -Force
+          Copy-Item -Path 'windows/Ubour-windows-x64/rules' -Destination 'publish/Ubour-windows-x64/rules' -Recurse -Force
+          Copy-Item -Path 'windows/Ubour-windows-x64/licenses' -Destination 'publish/Ubour-windows-x64/licenses' -Recurse -Force
+          Copy-Item -Path 'windows/Ubour-windows-x64/wintun.dll' -Destination 'publish/Ubour-windows-x64/' -Force
+          Copy-Item -Path 'windows/Ubour-windows-x64/app.ico' -Destination 'publish/Ubour-windows-x64/' -Force
+          Copy-Item -Path 'windows/Ubour-windows-x64/README.md' -Destination 'publish/Ubour-windows-x64/' -Force
+          Copy-Item -Path 'windows/Ubour-windows-x64/README.ar.md' -Destination 'publish/Ubour-windows-x64/' -Force
+
+          # Package x86 Assets
+          Copy-Item -Path 'windows/Ubour-windows-x86/engine' -Destination 'publish/Ubour-windows-x86/engine' -Recurse -Force
+          Copy-Item -Path 'windows/Ubour-windows-x86/rules' -Destination 'publish/Ubour-windows-x86/rules' -Recurse -Force
+          Copy-Item -Path 'windows/Ubour-windows-x86/licenses' -Destination 'publish/Ubour-windows-x86/licenses' -Recurse -Force
+          Copy-Item -Path 'windows/Ubour-windows-x86/app.ico' -Destination 'publish/Ubour-windows-x86/' -Force
+          Copy-Item -Path 'windows/Ubour-windows-x86/README.md' -Destination 'publish/Ubour-windows-x86/' -Force
+          Copy-Item -Path 'windows/Ubour-windows-x86/README.ar.md' -Destination 'publish/Ubour-windows-x86/' -Force
 
       - name: Create Windows Release Archives
         shell: pwsh
