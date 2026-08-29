@@ -1,0 +1,21 @@
+<Application x:Class="Ubour.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="Views/MainWindow.xaml">
+    <Application.Resources>
+        <Color x:Key="BgGradientStart">#0B0F19</Color>
+        <Color x:Key="BgGradientEnd">#111827</Color>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#1E293B"/>
+        <SolidColorBrush x:Key="CardBrush" Color="#182234"/>
+        <SolidColorBrush x:Key="CardBorderBrush" Color="#2D3B55"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F8FAFC"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="AccentEmerald" Color="#10B981"/>
+        <SolidColorBrush x:Key="AccentOrange" Color="#F97316"/>
+        <SolidColorBrush x:Key="AccentCyan" Color="#06B6D4"/>
+        <SolidColorBrush x:Key="AccentShield" Color="#3B82F6"/>
+        <SolidColorBrush x:Key="AccentAmber" Color="#F59E0B"/>
+        <SolidColorBrush x:Key="AccentCrimson" Color="#EF4444"/>
+        <SolidColorBrush x:Key="PowerBtnOffBrush" Color="#1E293B"/>
+    </Application.Resources>
+</Application>
