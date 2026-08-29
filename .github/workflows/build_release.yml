@@ -141,21 +141,22 @@ jobs:
           dotnet publish windows/src/Ubour/Ubour.csproj -c Release -r win-x86 --self-contained false -o publish/Ubour-windows-x86
 
           # Package x64 Assets
-          Copy-Item -Path 'windows/Ubour-windows-x64/engine' -Destination 'publish/Ubour-windows-x64/engine' -Recurse -Force
-          Copy-Item -Path 'windows/Ubour-windows-x64/rules' -Destination 'publish/Ubour-windows-x64/rules' -Recurse -Force
-          Copy-Item -Path 'windows/Ubour-windows-x64/licenses' -Destination 'publish/Ubour-windows-x64/licenses' -Recurse -Force
-          Copy-Item -Path 'windows/Ubour-windows-x64/wintun.dll' -Destination 'publish/Ubour-windows-x64/' -Force
-          Copy-Item -Path 'windows/Ubour-windows-x64/app.ico' -Destination 'publish/Ubour-windows-x64/' -Force
-          Copy-Item -Path 'windows/Ubour-windows-x64/README.md' -Destination 'publish/Ubour-windows-x64/' -Force
-          Copy-Item -Path 'windows/Ubour-windows-x64/README.ar.md' -Destination 'publish/Ubour-windows-x64/' -Force
+          Copy-Item -Path 'windows/Ubour-windows-x64/engine' -Destination 'publish/Ubour-windows-x64/engine' -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path 'windows/Ubour-windows-x64/rules' -Destination 'publish/Ubour-windows-x64/rules' -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path 'windows/Ubour-windows-x64/licenses' -Destination 'publish/Ubour-windows-x64/licenses' -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path 'windows/Ubour-windows-x64/wintun.dll' -Destination 'publish/Ubour-windows-x64/' -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path 'windows/Ubour-windows-x64/app.ico' -Destination 'publish/Ubour-windows-x64/' -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path 'windows/Ubour-windows-x64/README.md' -Destination 'publish/Ubour-windows-x64/' -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path 'windows/Ubour-windows-x64/README.ar.md' -Destination 'publish/Ubour-windows-x64/' -Force -ErrorAction SilentlyContinue
 
           # Package x86 Assets
-          Copy-Item -Path 'windows/Ubour-windows-x86/engine' -Destination 'publish/Ubour-windows-x86/engine' -Recurse -Force
-          Copy-Item -Path 'windows/Ubour-windows-x86/rules' -Destination 'publish/Ubour-windows-x86/rules' -Recurse -Force
-          Copy-Item -Path 'windows/Ubour-windows-x86/licenses' -Destination 'publish/Ubour-windows-x86/licenses' -Recurse -Force
-          Copy-Item -Path 'windows/Ubour-windows-x86/app.ico' -Destination 'publish/Ubour-windows-x86/' -Force
-          Copy-Item -Path 'windows/Ubour-windows-x86/README.md' -Destination 'publish/Ubour-windows-x86/' -Force
-          Copy-Item -Path 'windows/Ubour-windows-x86/README.ar.md' -Destination 'publish/Ubour-windows-x86/' -Force
+          Copy-Item -Path 'windows/Ubour-windows-x86/engine' -Destination 'publish/Ubour-windows-x86/engine' -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path 'windows/Ubour-windows-x86/rules' -Destination 'publish/Ubour-windows-x86/rules' -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path 'windows/Ubour-windows-x86/licenses' -Destination 'publish/Ubour-windows-x86/licenses' -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path 'windows/Ubour-windows-x86/wintun.dll' -Destination 'publish/Ubour-windows-x86/' -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path 'windows/Ubour-windows-x86/app.ico' -Destination 'publish/Ubour-windows-x86/' -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path 'windows/Ubour-windows-x86/README.md' -Destination 'publish/Ubour-windows-x86/' -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path 'windows/Ubour-windows-x86/README.ar.md' -Destination 'publish/Ubour-windows-x86/' -Force -ErrorAction SilentlyContinue
 
       - name: Create Windows Release Archives
         shell: pwsh

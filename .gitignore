@@ -6,6 +6,10 @@
 *.pdb
 *.zip
 
+# Allow native prebuilt engine dependencies & drivers for Windows
+!windows/**/engine/**
+!windows/**/wintun.dll
+
 # Android & Gradle
 .gradle/
 build/
