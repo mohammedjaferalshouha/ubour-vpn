@@ -88,6 +88,7 @@ public sealed class DnsSystemManager
         }
         finally
         {
+            ProxyManager.DisableProxy();
             _originalIsDhcp.Clear();
             _originalStaticDns.Clear();
             _isDnsModified = false;
