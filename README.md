@@ -81,12 +81,12 @@ Unlike conventional VPN services that route all your internet traffic through ex
 * **Cryptographically Signed**: Official production keystore with Android V2/V3 signature schemes for seamless OTA updates.
 * **Modern Material 3 Interface**: Elegant Dark/Light mode with comprehensive Arabic (RTL) & English localization.
 
-### 💻 Windows PC Application (`vpn/Ubour`)
+### 💻 Windows PC Application (`windows/src/Ubour`)
 * **GoodbyeDPI & WinDivert Integration**: Kernel-level packet filter bypassing ISP DPI with zero latency.
 * **Multi-Preset DPI Selector**: Quick switching between Standard Mode, Fast Fragmentation, and Fake SNI.
 * **Lightweight WPF Interface**: Clean Arabized GUI with system tray minimization and auto-reconnect.
 * **Built-in Auto Updater**: Seamless one-click verification against GitHub releases.
-* **x64 & x86 Dual Architecture**: Native standalone self-contained publish packages.
+* **x64 & x86 Dual Architecture**: Native standalone publish packages.
 
 ---
 
@@ -119,14 +119,14 @@ The output APK is located at: `app/build/outputs/apk/release/app-release.apk`
 
 ### Windows PC App
 ```bash
-cd ubour-vpn/vpn
+cd ubour-vpn/windows/src
 
 # Run unit tests
 dotnet test Ubour.Tests/Ubour.Tests.csproj -c Release
 
-# Publish self-contained Windows application
-dotnet publish Ubour/Ubour.csproj -c Release -r win-x64 --self-contained true
-dotnet publish Ubour/Ubour.csproj -c Release -r win-x86 --self-contained true
+# Publish Windows application
+dotnet publish Ubour/Ubour.csproj -c Release -r win-x64 --self-contained false
+dotnet publish Ubour/Ubour.csproj -c Release -r win-x86 --self-contained false
 ```
 
 ---
