@@ -11,6 +11,7 @@
 [![Platform: Android](https://img.shields.io/badge/Platform-Android%207.0%2B-blue.svg)](#-تطبيق-الأندرويد)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-0078D6.svg)](#-تطبيق-الكمبيوتر-لويندوز)
 [![Privacy: Zero-Logging](https://img.shields.io/badge/الخصوصية-محلية%20100%25%20بدون%20سجلات-success.svg)](#-الخصوصية-والأمان)
+[![الخريطة المعرفية](https://img.shields.io/badge/المعمارية-الخريطة%20المعرفية%20التفاعلية-8A2BE2.svg)](https://htmlpreview.github.io/?https://github.com/mohammedjaferalshouha/ubour-vpn/blob/main/graphify-out/graph.html)
 
 **[English (الإنجليزية)](README.md) | [العربية](README.ar.md)**
 
@@ -21,6 +22,7 @@
 [![تحميل للأندرويد APK](https://img.shields.io/badge/تحميل_مباشر-نسخة_الأندرويد_APK-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-VPN-Release.apk)
 [![تحميل لويندوز 64 بت](https://img.shields.io/badge/تحميل_مباشر-ويندوز_64_بت_x64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x64.zip)
 [![تحميل لويندوز 32 بت](https://img.shields.io/badge/تحميل_مباشر-ويندوز_32_بت_x86-5C2D91?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x86.zip)
+[![استعراض الخريطة التفاعلية](https://img.shields.io/badge/الخريطة_التفاعلية-استكشاف_معمارية_المشروع-8A2BE2?style=for-the-badge&logo=diagram-next&logoColor=white)](https://htmlpreview.github.io/?https://github.com/mohammedjaferalshouha/ubour-vpn/blob/main/graphify-out/graph.html)
 [![أرشيف جميع الإصدارات](https://img.shields.io/badge/أرشيف_الإصدارات-كافة_النسخ_السابقة-orange?style=for-the-badge&logo=github&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases)
 
 </div>

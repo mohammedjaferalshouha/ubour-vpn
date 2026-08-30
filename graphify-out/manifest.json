@@ -1,0 +1,488 @@
+{
+  "apk+ublock/app/build.gradle.kts": {
+    "mtime": 1788121851.866981,
+    "seen": 1788121862.9951794,
+    "ast_hash": "452b0921a86fe0bdc9915a8aa6102199",
+    "semantic_hash": "452b0921a86fe0bdc9915a8aa6102199"
+  },
+  "apk+ublock/app/src/main/cpp/byedpi/conev.c": {
+    "mtime": 1788121851.9461637,
+    "seen": 1788121862.995184,
+    "ast_hash": "bfdf7159a0d110f5a195b6e3a81013be",
+    "semantic_hash": "bfdf7159a0d110f5a195b6e3a81013be"
+  },
+  "apk+ublock/app/src/main/cpp/byedpi/conev.h": {
+    "mtime": 1788121851.9461637,
+    "seen": 1788121862.9951856,
+    "ast_hash": "e76f378eda36a6d6b6aced72c2c83d25",
+    "semantic_hash": "e76f378eda36a6d6b6aced72c2c83d25"
+  },
+  "apk+ublock/app/src/main/cpp/byedpi/desync.c": {
+    "mtime": 1788121851.9471684,
+    "seen": 1788121862.9951863,
+    "ast_hash": "4201f4b42fc376da11896211903ec877",
+    "semantic_hash": "4201f4b42fc376da11896211903ec877"
+  },
+  "apk+ublock/app/src/main/cpp/byedpi/desync.h": {
+    "mtime": 1788121851.9471684,
+    "seen": 1788121862.9951873,
+    "ast_hash": "ec21b4651b8034e7a218eb06580f8950",
+    "semantic_hash": "ec21b4651b8034e7a218eb06580f8950"
+  },
+  "apk+ublock/app/src/main/cpp/byedpi/error.h": {
+    "mtime": 1788121851.9491673,
+    "seen": 1788121862.9951878,
+    "ast_hash": "3796f304fb17f2a8e715b16c63ac76d5",
+    "semantic_hash": "3796f304fb17f2a8e715b16c63ac76d5"
+  },
+  "apk+ublock/app/src/main/cpp/byedpi/extend.c": {
+    "mtime": 1788121851.9491673,
+    "seen": 1788121862.9951887,
+    "ast_hash": "8e9734ccec40e173481bf2721e9f7b4e",
+    "semantic_hash": "8e9734ccec40e173481bf2721e9f7b4e"
+  },
+  "apk+ublock/app/src/main/cpp/byedpi/extend.h": {
+    "mtime": 1788121851.9491673,
+    "seen": 1788121862.9951892,
+    "ast_hash": "02615f6f33583c11011ba6a948f946e1",
+    "semantic_hash": "02615f6f33583c11011ba6a948f946e1"
+  },
+  "apk+ublock/app/src/main/cpp/byedpi/kavl.h": {
+    "mtime": 1788121851.950167,
+    "seen": 1788121862.99519,
+    "ast_hash": "4928acb97585607c3f69750eda56cce0",
+    "semantic_hash": "4928acb97585607c3f69750eda56cce0"
+  },
+  "apk+ublock/app/src/main/cpp/byedpi/main.c": {
+    "mtime": 1788121851.950167,
+    "seen": 1788121862.9951906,
+    "ast_hash": "d64eaeb0891dacebb579d0f4da4b9800",
+    "semantic_hash": "d64eaeb0891dacebb579d0f4da4b9800"
+  },
+  "apk+ublock/app/src/main/cpp/byedpi/mpool.c": {
+    "mtime": 1788121851.950167,
+    "seen": 1788121862.9951913,
+    "ast_hash": "a979159e2b94e5a8375cd2c6ec7781bc",
+    "semantic_hash": "a979159e2b94e5a8375cd2c6ec7781bc"
+  },
+  "apk+ublock/app/src/main/cpp/byedpi/mpool.h": {
+    "mtime": 1788121851.9511669,
+    "seen": 1788121862.995192,
+    "ast_hash": "8c1241e7071cc4d4f844fd162458fd27",
+    "semantic_hash": "8c1241e7071cc4d4f844fd162458fd27"
+  },
+  "apk+ublock/app/src/main/cpp/byedpi/packets.c": {
+    "mtime": 1788121851.9511669,
+    "seen": 1788121862.9951925,
+    "ast_hash": "84de0cb572074dfb25262b7fc83c3731",
+    "semantic_hash": "84de0cb572074dfb25262b7fc83c3731"
+  },
+  "apk+ublock/app/src/main/cpp/byedpi/packets.h": {
+    "mtime": 1788121851.9511669,
+    "seen": 1788121862.9951932,
+    "ast_hash": "9dd913b60dede1c251cf3230cd011366",
+    "semantic_hash": "9dd913b60dede1c251cf3230cd011366"
+  },
+  "apk+ublock/app/src/main/cpp/byedpi/params.h": {
+    "mtime": 1788121851.9521685,
+    "seen": 1788121862.9951942,
+    "ast_hash": "877164ba643e3a1464647ff5a6ba3cb8",
+    "semantic_hash": "877164ba643e3a1464647ff5a6ba3cb8"
+  },
+  "apk+ublock/app/src/main/cpp/byedpi/proxy.c": {
+    "mtime": 1788121851.9521685,
+    "seen": 1788121862.995195,
+    "ast_hash": "b978af745e2c52d7dfe33ab5193a2af7",
+    "semantic_hash": "b978af745e2c52d7dfe33ab5193a2af7"
+  },
+  "apk+ublock/app/src/main/cpp/byedpi/proxy.h": {
+    "mtime": 1788121851.9531684,
+    "seen": 1788121862.9951954,
+    "ast_hash": "bde4cd26946c1aa9734158ef4c806aa2",
+    "semantic_hash": "bde4cd26946c1aa9734158ef4c806aa2"
+  },
+  "apk+ublock/app/src/main/cpp/byedpi/win_service.c": {
+    "mtime": 1788121851.9531684,
+    "seen": 1788121862.995196,
+    "ast_hash": "1ef4d707e63e73e9ded27c1adf9335b1",
+    "semantic_hash": "1ef4d707e63e73e9ded27c1adf9335b1"
+  },
+  "apk+ublock/app/src/main/cpp/byedpi/win_service.h": {
+    "mtime": 1788121851.9531684,
+    "seen": 1788121862.9951968,
+    "ast_hash": "a9b3ef8566987a4d6aeafdf5081a0727",
+    "semantic_hash": "a9b3ef8566987a4d6aeafdf5081a0727"
+  },
+  "apk+ublock/app/src/main/cpp/ciadpi_core.c": {
+    "mtime": 1788121851.9541693,
+    "seen": 1788121862.9951975,
+    "ast_hash": "7fc4d1d2900453def14a00ee0435fcf6",
+    "semantic_hash": "7fc4d1d2900453def14a00ee0435fcf6"
+  },
+  "apk+ublock/app/src/main/cpp/ciadpi_core.h": {
+    "mtime": 1788121851.9541693,
+    "seen": 1788121862.9951982,
+    "ast_hash": "0c5bcf7ffcf5df7917e02f73cd01741c",
+    "semantic_hash": "0c5bcf7ffcf5df7917e02f73cd01741c"
+  },
+  "apk+ublock/app/src/main/cpp/main.h": {
+    "mtime": 1788121851.9551682,
+    "seen": 1788121862.9951987,
+    "ast_hash": "2f9ebb12789f39cd21ce6c0684b2ce79",
+    "semantic_hash": "2f9ebb12789f39cd21ce6c0684b2ce79"
+  },
+  "apk+ublock/app/src/main/cpp/native-lib.c": {
+    "mtime": 1788121851.9551682,
+    "seen": 1788121862.9951997,
+    "ast_hash": "1c2e6ffef2c77c68e3f94ad0cef774d8",
+    "semantic_hash": "1c2e6ffef2c77c68e3f94ad0cef774d8"
+  },
+  "apk+ublock/app/src/main/cpp/tun2socks_core.c": {
+    "mtime": 1788121851.9551682,
+    "seen": 1788121862.9952004,
+    "ast_hash": "ff3b6ae074e8462ffa87d175bf25da03",
+    "semantic_hash": "ff3b6ae074e8462ffa87d175bf25da03"
+  },
+  "apk+ublock/app/src/main/cpp/tun2socks_core.h": {
+    "mtime": 1788121851.956168,
+    "seen": 1788121862.995201,
+    "ast_hash": "8d22685c65b8762a5bd9053b1fb5a8d2",
+    "semantic_hash": "8d22685c65b8762a5bd9053b1fb5a8d2"
+  },
+  "apk+ublock/app/src/main/cpp/ubour_jni.c": {
+    "mtime": 1788121851.956168,
+    "seen": 1788121862.9952016,
+    "ast_hash": "dc74ad2b82da88e8d905230db7fe9118",
+    "semantic_hash": "dc74ad2b82da88e8d905230db7fe9118"
+  },
+  "apk+ublock/app/src/main/cpp/utils.c": {
+    "mtime": 1788121851.956168,
+    "seen": 1788121862.9952023,
+    "ast_hash": "14f7536ece0133f6f2522a046addf6ee",
+    "semantic_hash": "14f7536ece0133f6f2522a046addf6ee"
+  },
+  "apk+ublock/app/src/main/cpp/utils.h": {
+    "mtime": 1788121851.956168,
+    "seen": 1788121862.9952028,
+    "ast_hash": "f77468a01f1bc4e94a2bc612238cd65b",
+    "semantic_hash": "f77468a01f1bc4e94a2bc612238cd65b"
+  },
+  "apk+ublock/app/src/main/java/com/ubour/vpn/UbourApplication.kt": {
+    "mtime": 1788121851.9571683,
+    "seen": 1788121862.9952035,
+    "ast_hash": "ac1d7fffe6330868c30b42eaf2fef228",
+    "semantic_hash": "ac1d7fffe6330868c30b42eaf2fef228"
+  },
+  "apk+ublock/app/src/main/java/com/ubour/vpn/adblock/AdBlockEngine.kt": {
+    "mtime": 1788121851.9584517,
+    "seen": 1788121862.9952042,
+    "ast_hash": "cd1c96ca1c1a2fc9e31c03cfef61be2e",
+    "semantic_hash": "cd1c96ca1c1a2fc9e31c03cfef61be2e"
+  },
+  "apk+ublock/app/src/main/java/com/ubour/vpn/adblock/DnsFilterServer.kt": {
+    "mtime": 1788121851.9584517,
+    "seen": 1788121862.995205,
+    "ast_hash": "5578ed28bab5a768806139ed0891cc59",
+    "semantic_hash": "5578ed28bab5a768806139ed0891cc59"
+  },
+  "apk+ublock/app/src/main/java/com/ubour/vpn/adblock/FilterUpdateService.kt": {
+    "mtime": 1788121851.9584517,
+    "seen": 1788121862.9952056,
+    "ast_hash": "ae590bb297806c401c7ce856a86e8b24",
+    "semantic_hash": "ae590bb297806c401c7ce856a86e8b24"
+  },
+  "apk+ublock/app/src/main/java/com/ubour/vpn/core/NativeEngine.kt": {
+    "mtime": 1788121851.9594514,
+    "seen": 1788121862.995206,
+    "ast_hash": "f1381421a678dbbf3997ea2e20823cd7",
+    "semantic_hash": "f1381421a678dbbf3997ea2e20823cd7"
+  },
+  "apk+ublock/app/src/main/java/com/ubour/vpn/core/SingboxManager.kt": {
+    "mtime": 1788121851.9594514,
+    "seen": 1788121862.9952068,
+    "ast_hash": "685a37b01f4a051a6973e4135e01016e",
+    "semantic_hash": "685a37b01f4a051a6973e4135e01016e"
+  },
+  "apk+ublock/app/src/main/java/com/ubour/vpn/core/VpnStateManager.kt": {
+    "mtime": 1788121851.9594514,
+    "seen": 1788121862.9952073,
+    "ast_hash": "f0420a983ee74c30d707f18cb77b4db8",
+    "semantic_hash": "f0420a983ee74c30d707f18cb77b4db8"
+  },
+  "apk+ublock/app/src/main/java/com/ubour/vpn/receiver/BootReceiver.kt": {
+    "mtime": 1788121851.960452,
+    "seen": 1788121862.9952083,
+    "ast_hash": "5b12de00499514d8b60648d5acb9eac6",
+    "semantic_hash": "5b12de00499514d8b60648d5acb9eac6"
+  },
+  "apk+ublock/app/src/main/java/com/ubour/vpn/service/UbourVpnService.kt": {
+    "mtime": 1788121851.960452,
+    "seen": 1788121862.9952087,
+    "ast_hash": "2be1568ab9a4c1e31efa3b09f92270ce",
+    "semantic_hash": "2be1568ab9a4c1e31efa3b09f92270ce"
+  },
+  "apk+ublock/app/src/main/java/com/ubour/vpn/service/UpdateService.kt": {
+    "mtime": 1788121851.961452,
+    "seen": 1788121862.9952095,
+    "ast_hash": "00ba68524e4cba8e86e95723447eb13d",
+    "semantic_hash": "00ba68524e4cba8e86e95723447eb13d"
+  },
+  "apk+ublock/app/src/main/java/com/ubour/vpn/ui/AppsAdapter.kt": {
+    "mtime": 1788121851.9624517,
+    "seen": 1788121862.99521,
+    "ast_hash": "056b1b61ea5523cb47fde429e316d231",
+    "semantic_hash": "056b1b61ea5523cb47fde429e316d231"
+  },
+  "apk+ublock/app/src/main/java/com/ubour/vpn/ui/MainActivity.kt": {
+    "mtime": 1788121851.9624517,
+    "seen": 1788121862.9952106,
+    "ast_hash": "0f2bdf6770b4cf64deff5a3651f123ef",
+    "semantic_hash": "0f2bdf6770b4cf64deff5a3651f123ef"
+  },
+  "apk+ublock/app/src/main/java/com/ubour/vpn/warp/WarpManager.kt": {
+    "mtime": 1788121851.9624517,
+    "seen": 1788121862.9952116,
+    "ast_hash": "d85f591a4ed3566d2b37ecf65d05d4c1",
+    "semantic_hash": "d85f591a4ed3566d2b37ecf65d05d4c1"
+  },
+  "apk+ublock/app/src/main/java/io/github/dovecoteescapee/byedpi/core/ByeDpiProxy.kt": {
+    "mtime": 1788121851.9644518,
+    "seen": 1788121862.995212,
+    "ast_hash": "426f7ac92a4cd5d5db4bc424059f9df2",
+    "semantic_hash": "426f7ac92a4cd5d5db4bc424059f9df2"
+  },
+  "apk+ublock/app/src/main/java/io/github/dovecoteescapee/byedpi/core/TProxyService.kt": {
+    "mtime": 1788121851.9644518,
+    "seen": 1788121862.9952126,
+    "ast_hash": "4564580a7850bd5c96216f3264b6dc5b",
+    "semantic_hash": "4564580a7850bd5c96216f3264b6dc5b"
+  },
+  "apk+ublock/app/src/test/java/com/ubour/vpn/adblock/AdBlockEngineTest.kt": {
+    "mtime": 1788121853.391812,
+    "seen": 1788121862.9952135,
+    "ast_hash": "21e5cbf74f467c0ca874e38d9dfb8652",
+    "semantic_hash": "21e5cbf74f467c0ca874e38d9dfb8652"
+  },
+  "apk+ublock/app/src/test/java/com/ubour/vpn/adblock/DnsAdBlockSimulationTest.kt": {
+    "mtime": 1788121853.3923438,
+    "seen": 1788121862.995214,
+    "ast_hash": "fabfe93bf42575b3abde070be9b87192",
+    "semantic_hash": "fabfe93bf42575b3abde070be9b87192"
+  },
+  "apk+ublock/app/src/test/java/com/ubour/vpn/core/VpnStateManagerTest.kt": {
+    "mtime": 1788121853.3923438,
+    "seen": 1788121862.9952152,
+    "ast_hash": "1bccca20124191b3e9f1de98a9cab4ef",
+    "semantic_hash": "1bccca20124191b3e9f1de98a9cab4ef"
+  },
+  "apk+ublock/app/src/test/java/com/ubour/vpn/service/UpdateServiceTest.kt": {
+    "mtime": 1788121853.3928673,
+    "seen": 1788121862.9952157,
+    "ast_hash": "c45be8581ee18ac861ead6e7d70f73c1",
+    "semantic_hash": "c45be8581ee18ac861ead6e7d70f73c1"
+  },
+  "apk+ublock/app/src/test/java/com/ubour/vpn/warp/CountryManagerTest.kt": {
+    "mtime": 1788121853.3934026,
+    "seen": 1788121862.9952164,
+    "ast_hash": "0b4f007f8b2423760a259be5d7341697",
+    "semantic_hash": "0b4f007f8b2423760a259be5d7341697"
+  },
+  "apk+ublock/build.gradle.kts": {
+    "mtime": 1788121853.3939312,
+    "seen": 1788121862.9952168,
+    "ast_hash": "5a52a1a1c8fedabec911c3e8e1ff3975",
+    "semantic_hash": "5a52a1a1c8fedabec911c3e8e1ff3975"
+  },
+  "apk+ublock/gradlew": {
+    "mtime": 1788121853.39603,
+    "seen": 1788121862.9952176,
+    "ast_hash": "d71558d06a8c97628fdb0e38b0c36a2d",
+    "semantic_hash": "d71558d06a8c97628fdb0e38b0c36a2d"
+  },
+  "apk+ublock/settings.gradle.kts": {
+    "mtime": 1788121853.3975961,
+    "seen": 1788121862.9952185,
+    "ast_hash": "eaac3bc7e7b73b086be33d3af086182c",
+    "semantic_hash": "eaac3bc7e7b73b086be33d3af086182c"
+  },
+  "windows/Ubour-windows-x64/Ubour.deps.json": {
+    "mtime": 1788033822.315178,
+    "seen": 1788121862.995219,
+    "ast_hash": "dc9c50a6810cdff128b65915d0df1d29",
+    "semantic_hash": "dc9c50a6810cdff128b65915d0df1d29"
+  },
+  "windows/Ubour-windows-x64/Ubour.runtimeconfig.json": {
+    "mtime": 1788033822.3467693,
+    "seen": 1788121862.9952197,
+    "ast_hash": "7e4444b5a3e3cea574693f055f944011",
+    "semantic_hash": "7e4444b5a3e3cea574693f055f944011"
+  },
+  "windows/Ubour-windows-x86/Ubour.deps.json": {
+    "mtime": 1788033839.7536,
+    "seen": 1788121862.9952202,
+    "ast_hash": "40feb21a7ebe35775a4214038c6ba3f0",
+    "semantic_hash": "40feb21a7ebe35775a4214038c6ba3f0"
+  },
+  "windows/Ubour-windows-x86/Ubour.runtimeconfig.json": {
+    "mtime": 1788033839.7816038,
+    "seen": 1788121862.995221,
+    "ast_hash": "7e4444b5a3e3cea574693f055f944011",
+    "semantic_hash": "7e4444b5a3e3cea574693f055f944011"
+  },
+  "windows/src/Ubour.Tests/AdBlockDnsPacketTests.cs": {
+    "mtime": 1788032536.9099698,
+    "seen": 1788121862.9952216,
+    "ast_hash": "b1162d5ce77ba87e226d0f6f8c62d696",
+    "semantic_hash": "b1162d5ce77ba87e226d0f6f8c62d696"
+  },
+  "windows/src/Ubour.Tests/AdBlockEngineTests.cs": {
+    "mtime": 1788032507.2333722,
+    "seen": 1788121862.9952223,
+    "ast_hash": "6caa24321f69dab4dc96c90ee2fb0f52",
+    "semantic_hash": "6caa24321f69dab4dc96c90ee2fb0f52"
+  },
+  "windows/src/Ubour.Tests/DnsManagerTests.cs": {
+    "mtime": 1788032540.5045812,
+    "seen": 1788121862.9952228,
+    "ast_hash": "cdbe83a8c3ba6b0d0c17ca565a552b78",
+    "semantic_hash": "cdbe83a8c3ba6b0d0c17ca565a552b78"
+  },
+  "windows/src/Ubour.Tests/GoodbyeDpiManagerTests.cs": {
+    "mtime": 1788036826.1983118,
+    "seen": 1788121862.9952235,
+    "ast_hash": "6021a2a71bbc54c2ca1e48b9f2932d45",
+    "semantic_hash": "6021a2a71bbc54c2ca1e48b9f2932d45"
+  },
+  "windows/src/Ubour.Tests/LocalizationAndSettingsTests.cs": {
+    "mtime": 1788032526.9339223,
+    "seen": 1788121862.9952242,
+    "ast_hash": "be6322b259703ace51fdc89df0f7ad29",
+    "semantic_hash": "be6322b259703ace51fdc89df0f7ad29"
+  },
+  "windows/src/Ubour.Tests/SingboxManagerTests.cs": {
+    "mtime": 1788032511.188941,
+    "seen": 1788121862.9952247,
+    "ast_hash": "8bdc0d4090a336e994116323442790ca",
+    "semantic_hash": "8bdc0d4090a336e994116323442790ca"
+  },
+  "windows/src/Ubour.Tests/Ubour.Tests.csproj": {
+    "mtime": 1788032504.5005004,
+    "seen": 1788121862.9952257,
+    "ast_hash": "d5aa66f3efc394c5cbe3dceaaeeeebf9",
+    "semantic_hash": "d5aa66f3efc394c5cbe3dceaaeeeebf9"
+  },
+  "windows/src/Ubour.Tests/UpdateManagerTests.cs": {
+    "mtime": 1788114511.3190956,
+    "seen": 1788121862.9952261,
+    "ast_hash": "4eddbfc895d9f752a1c66648e9ae719a",
+    "semantic_hash": "4eddbfc895d9f752a1c66648e9ae719a"
+  },
+  "windows/src/Ubour/App.xaml": {
+    "mtime": 1787683486.530634,
+    "seen": 1788121862.9952269,
+    "ast_hash": "e20466ed6c33aff92d5cf0ac786e8fd3",
+    "semantic_hash": "e20466ed6c33aff92d5cf0ac786e8fd3"
+  },
+  "windows/src/Ubour/App.xaml.cs": {
+    "mtime": 1788030802.3633156,
+    "seen": 1788121862.9952273,
+    "ast_hash": "f304261b3615ada8accbc9619930bab6",
+    "semantic_hash": "f304261b3615ada8accbc9619930bab6"
+  },
+  "windows/src/Ubour/Models/AppOperationMode.cs": {
+    "mtime": 1787683444.5907817,
+    "seen": 1788121862.995228,
+    "ast_hash": "9f75fb398537f2bd2eac8730cb91125e",
+    "semantic_hash": "9f75fb398537f2bd2eac8730cb91125e"
+  },
+  "windows/src/Ubour/Models/AppSettings.cs": {
+    "mtime": 1788029742.6251576,
+    "seen": 1788121862.9952288,
+    "ast_hash": "6be0f3c567423ab5f8e07635275f0e0a",
+    "semantic_hash": "6be0f3c567423ab5f8e07635275f0e0a"
+  },
+  "windows/src/Ubour/Services/AdBlockEngine.cs": {
+    "mtime": 1788025226.5926747,
+    "seen": 1788121862.9952295,
+    "ast_hash": "77fbd3192506cb73fac5ad6e8bd014bd",
+    "semantic_hash": "77fbd3192506cb73fac5ad6e8bd014bd"
+  },
+  "windows/src/Ubour/Services/AppLogger.cs": {
+    "mtime": 1787737641.924517,
+    "seen": 1788121862.99523,
+    "ast_hash": "203502cbf15057971c3e50d35af7b5dd",
+    "semantic_hash": "203502cbf15057971c3e50d35af7b5dd"
+  },
+  "windows/src/Ubour/Services/DnsManager.cs": {
+    "mtime": 1788030797.9658678,
+    "seen": 1788121862.9952307,
+    "ast_hash": "76bc75838ca5ec55a35513625c2620be",
+    "semantic_hash": "76bc75838ca5ec55a35513625c2620be"
+  },
+  "windows/src/Ubour/Services/GoodbyeDpiManager.cs": {
+    "mtime": 1788025810.5255592,
+    "seen": 1788121862.9952312,
+    "ast_hash": "bac164571b9ef83ebebac9700fac818a",
+    "semantic_hash": "bac164571b9ef83ebebac9700fac818a"
+  },
+  "windows/src/Ubour/Services/LocalizationManager.cs": {
+    "mtime": 1788114467.7789788,
+    "seen": 1788121862.9952323,
+    "ast_hash": "43b809fa895fd7eb0518630c55ec38c6",
+    "semantic_hash": "43b809fa895fd7eb0518630c55ec38c6"
+  },
+  "windows/src/Ubour/Services/ProxyManager.cs": {
+    "mtime": 1788033810.5261383,
+    "seen": 1788121862.995233,
+    "ast_hash": "4bc500bacc454d71fa96fa7e59db6226",
+    "semantic_hash": "4bc500bacc454d71fa96fa7e59db6226"
+  },
+  "windows/src/Ubour/Services/SingboxManager.cs": {
+    "mtime": 1788030155.1866887,
+    "seen": 1788121862.9952335,
+    "ast_hash": "7b8f6b867872d35c68955a1b219bd6f0",
+    "semantic_hash": "7b8f6b867872d35c68955a1b219bd6f0"
+  },
+  "windows/src/Ubour/Services/ThemeManager.cs": {
+    "mtime": 1788031912.1821237,
+    "seen": 1788121862.9952345,
+    "ast_hash": "e02f710af8a0a986da19d324a6c11290",
+    "semantic_hash": "e02f710af8a0a986da19d324a6c11290"
+  },
+  "windows/src/Ubour/Services/UpdateManager.cs": {
+    "mtime": 1788114453.5528836,
+    "seen": 1788121862.995235,
+    "ast_hash": "b3ece2bddcfa7e86600a7720adb8ee63",
+    "semantic_hash": "b3ece2bddcfa7e86600a7720adb8ee63"
+  },
+  "windows/src/Ubour/Services/WarpManager.cs": {
+    "mtime": 1788029752.3383777,
+    "seen": 1788121862.9952362,
+    "ast_hash": "fb92066e49cec1b566858bbdea6f02b8",
+    "semantic_hash": "fb92066e49cec1b566858bbdea6f02b8"
+  },
+  "windows/src/Ubour/Services/WatchdogService.cs": {
+    "mtime": 1788033812.4086902,
+    "seen": 1788121862.9952369,
+    "ast_hash": "dbb1e6de5945caee28b3ecaa60126462",
+    "semantic_hash": "dbb1e6de5945caee28b3ecaa60126462"
+  },
+  "windows/src/Ubour/Ubour.csproj": {
+    "mtime": 1788114455.6253989,
+    "seen": 1788121862.9952376,
+    "ast_hash": "5a6435f517159b1051a06b93a34d7fa5",
+    "semantic_hash": "5a6435f517159b1051a06b93a34d7fa5"
+  },
+  "windows/src/Ubour/Views/MainWindow.xaml": {
+    "mtime": 1788114478.7019644,
+    "seen": 1788121862.9952383,
+    "ast_hash": "a443c8585c2f320e9c8af18c684f7ae2",
+    "semantic_hash": "a443c8585c2f320e9c8af18c684f7ae2"
+  },
+  "windows/src/Ubour/Views/MainWindow.xaml.cs": {
+    "mtime": 1788114490.445933,
+    "seen": 1788121862.995239,
+    "ast_hash": "86149281547b9059e871de175db2df97",
+    "semantic_hash": "86149281547b9059e871de175db2df97"
+  }
+}
