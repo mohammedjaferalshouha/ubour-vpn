@@ -118,10 +118,28 @@ jobs:
               gradle_content = re.sub(r'versionCode\s*=\s*\d+', f'versionCode = {new_vc}', gradle_content)
               gradle_content = re.sub(r'versionName\s*=\s*"[^"]+"', f'versionName = "{new_vn}"', gradle_content)
 
-              with open(gradle_file, 'w', encoding='utf-8') as f:
-                  f.write(gradle_content)
+              # Bump Windows Ubour.csproj & UpdateManager.cs
+              win_csproj = 'windows/src/Ubour/Ubour.csproj'
+              win_manager = 'windows/src/Ubour/Services/UpdateManager.cs'
 
-              print(f"Bumped version to {new_vn} (code {new_vc})")
+              if os.path.exists(win_csproj):
+                  with open(win_csproj, 'r', encoding='utf-8') as f:
+                      win_content = f.read()
+                  win_content = re.sub(r'<Version>[^<]+</Version>', f'<Version>{new_vn}</Version>', win_content)
+                  win_content = re.sub(r'<AssemblyVersion>[^<]+</AssemblyVersion>', f'<AssemblyVersion>{new_vn}.0</AssemblyVersion>', win_content)
+                  win_content = re.sub(r'<FileVersion>[^<]+</FileVersion>', f'<FileVersion>{new_vn}.0</FileVersion>', win_content)
+                  win_content = re.sub(r'<InformationalVersion>[^<]+</InformationalVersion>', f'<InformationalVersion>{new_vn}</InformationalVersion>', win_content)
+                  with open(win_csproj, 'w', encoding='utf-8') as f:
+                      f.write(win_content)
+
+              if os.path.exists(win_manager):
+                  with open(win_manager, 'r', encoding='utf-8') as f:
+                      mgr_content = f.read()
+                  mgr_content = re.sub(r'CurrentVersion\s*=\s*"[^"]+"', f'CurrentVersion = "{new_vn}"', mgr_content)
+                  with open(win_manager, 'w', encoding='utf-8') as f:
+                      f.write(mgr_content)
+
+              print(f"Bumped version to {new_vn} (code {new_vc}) for Android and Windows")
               with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
                   out.write("has_update=true\n")
                   out.write(f"new_version={new_vn}\n")
@@ -135,7 +153,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add apk+ublock/app/src/main/java/com/ubour/vpn/service/UpdateService.kt apk+ublock/app/build.gradle.kts
+          git add apk+ublock/app/src/main/java/com/ubour/vpn/service/UpdateService.kt apk+ublock/app/build.gradle.kts windows/src/Ubour/Ubour.csproj windows/src/Ubour/Services/UpdateManager.cs
           git commit -m "chore(deps): auto-update upstream engines to latest and bump version to ${{ steps.updater.outputs.new_version }}"
           git tag "${{ steps.updater.outputs.tag_name }}"
           git push origin main

@@ -332,7 +332,35 @@
                         </ComboBox>
 
                         <TextBlock x:Name="LblSettingsVless" Text="رابط خادم VLESS مخصص:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,6"/>
-                        <TextBox x:Name="TxtVlessUrl" Height="32" Padding="6" Margin="0,0,0,16" Background="{DynamicResource CardBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource CardBorderBrush}"/>
+                        <TextBox x:Name="TxtVlessUrl" Height="32" Padding="6" Margin="0,0,0,12" Background="{DynamicResource CardBrush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource CardBorderBrush}"/>
+
+                        <!-- Updates Section -->
+                        <Border Background="{DynamicResource CardBrush}" CornerRadius="10" Padding="12,10" Margin="0,0,0,14" BorderThickness="1" BorderBrush="{DynamicResource CardBorderBrush}">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,6">
+                                    <TextBlock x:Name="TxtAppVersion" Text="الإصدار: v1.6.1" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                    <Button x:Name="BtnCheckUpdate" Click="BtnCheckUpdate_Click" Content="فحص التحديثات 🔄" Height="28" Padding="10,2" HorizontalAlignment="Left" Background="#3B82F6" Foreground="White" FontSize="11" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border CornerRadius="6" Background="{TemplateBinding Background}">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Grid>
+                                <TextBlock x:Name="TxtUpdateStatus" Text="" FontSize="11" Foreground="#10B981" Visibility="Collapsed" Margin="0,2,0,4"/>
+                                <Button x:Name="BtnDownloadUpdate" Click="BtnDownloadUpdate_Click" Content="تحميل التحديث ⬇" Height="28" Background="#10B981" Foreground="White" FontSize="11" FontWeight="Bold" BorderThickness="0" Cursor="Hand" Visibility="Collapsed" Margin="0,4,0,0">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border CornerRadius="6" Background="{TemplateBinding Background}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </StackPanel>
+                        </Border>
 
                         <Button x:Name="BtnCloseSettings" Click="BtnCloseSettings_Click" Content="إغلاق وحفظ" Height="38" Background="#10B981" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand">
                             <Button.Template>
