@@ -47,7 +47,14 @@ public static class LocalizationManager
             ["TrayExit"] = "خروج نهائي",
             ["TrayMinimizedTitle"] = "عبور | Ubour",
             ["TrayMinimizedMsg"] = "البرنامج يعمل في الخلفية ويحمي اتصالك",
-            ["LockNotice"] = "يجب قطع الاتصال أولاً قبل تبديل الوضع"
+            ["LockNotice"] = "يجب قطع الاتصال أولاً قبل تبديل الوضع",
+            ["SettingsCheckUpdate"] = "فحص التحديثات 🔄",
+            ["UpdateChecking"] = "جاري فحص التحديثات...",
+            ["UpdateUpToDate"] = "البرنامج محدث لآخر إصدار ✓",
+            ["UpdateAvailable"] = "يوجد إصدار جديد متاح:",
+            ["UpdateDownload"] = "تحميل التحديث ⬇",
+            ["UpdateError"] = "تعذر التحقق من التحديثات",
+            ["AppVersionLabel"] = "الإصدار: "
         },
         ["en"] = new Dictionary<string, string>
         {
@@ -91,7 +98,14 @@ public static class LocalizationManager
             ["TrayExit"] = "Exit",
             ["TrayMinimizedTitle"] = "Ubour | عبور",
             ["TrayMinimizedMsg"] = "Ubour is running in the background and protecting your connection",
-            ["LockNotice"] = "Please disconnect before switching modes"
+            ["LockNotice"] = "Please disconnect before switching modes",
+            ["SettingsCheckUpdate"] = "Check for Updates 🔄",
+            ["UpdateChecking"] = "Checking for updates...",
+            ["UpdateUpToDate"] = "Ubour is up to date ✓",
+            ["UpdateAvailable"] = "New version available:",
+            ["UpdateDownload"] = "Download Update ⬇",
+            ["UpdateError"] = "Could not check for updates",
+            ["AppVersionLabel"] = "Version: "
         }
     };
 

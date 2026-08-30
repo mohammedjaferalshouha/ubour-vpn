@@ -133,6 +133,10 @@ public partial class MainWindow : Window
         LblSettingsVless.Text = LocalizationManager.Get("SettingsVless", lang);
         BtnCloseSettings.Content = LocalizationManager.Get("SettingsClose", lang);
 
+        TxtAppVersion.Text = LocalizationManager.Get("AppVersionLabel", lang) + "v" + UpdateManager.CurrentVersion;
+        BtnCheckUpdate.Content = LocalizationManager.Get("SettingsCheckUpdate", lang);
+        BtnDownloadUpdate.Content = LocalizationManager.Get("UpdateDownload", lang);
+
         UpdateTrayContextMenu();
         UpdateStatusUI();
     }
@@ -848,6 +852,72 @@ public partial class MainWindow : Window
     {
         AppLogger.Clear();
         TxtLogs.Clear();
+    }
+
+    private string _latestDownloadUrl = UpdateManager.ReleasesPageUrl;
+
+    private async void BtnCheckUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            BtnCheckUpdate.IsEnabled = false;
+            TxtUpdateStatus.Visibility = Visibility.Visible;
+            TxtUpdateStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#38BDF8")!);
+            TxtUpdateStatus.Text = LocalizationManager.Get("UpdateChecking", _settings.Language);
+            BtnDownloadUpdate.Visibility = Visibility.Collapsed;
+
+            var info = await UpdateManager.CheckForUpdatesAsync();
+
+            if (info.HasUpdate)
+            {
+                TxtUpdateStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981")!);
+                TxtUpdateStatus.Text = $"{LocalizationManager.Get("UpdateAvailable", _settings.Language)} v{info.LatestVersion}";
+                _latestDownloadUrl = Environment.Is64BitOperatingSystem && !string.IsNullOrEmpty(info.DownloadUrlX64)
+                    ? info.DownloadUrlX64
+                    : (!string.IsNullOrEmpty(info.DownloadUrlX86) ? info.DownloadUrlX86 : info.ReleaseUrl);
+                BtnDownloadUpdate.Visibility = Visibility.Visible;
+            }
+            else if (string.IsNullOrEmpty(info.ErrorMessage))
+            {
+                TxtUpdateStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981")!);
+                TxtUpdateStatus.Text = $"{LocalizationManager.Get("UpdateUpToDate", _settings.Language)} (v{UpdateManager.CurrentVersion})";
+                BtnDownloadUpdate.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                TxtUpdateStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444")!);
+                TxtUpdateStatus.Text = LocalizationManager.Get("UpdateError", _settings.Language);
+                BtnDownloadUpdate.Visibility = Visibility.Collapsed;
+            }
+        }
+        catch (Exception ex)
+        {
+            TxtUpdateStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444")!);
+            TxtUpdateStatus.Text = LocalizationManager.Get("UpdateError", _settings.Language);
+            BtnDownloadUpdate.Visibility = Visibility.Collapsed;
+            AppLogger.Error($"Check update failed: {ex.Message}");
+        }
+        finally
+        {
+            BtnCheckUpdate.IsEnabled = true;
+        }
+    }
+
+    private void BtnDownloadUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            string url = string.IsNullOrWhiteSpace(_latestDownloadUrl) ? UpdateManager.ReleasesPageUrl : _latestDownloadUrl;
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error($"Failed to open download url: {ex.Message}");
+        }
     }
 
 }
