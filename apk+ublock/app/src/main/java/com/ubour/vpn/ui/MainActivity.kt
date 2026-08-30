@@ -133,34 +133,31 @@ class MainActivity : AppCompatActivity() {
                 binding.rbOpFull.isChecked = true
                 binding.bypassModeCard.visibility = View.VISIBLE
                 binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_emerald))
-                binding.switchAdBlock.isChecked = true
-                binding.switchAdBlock.isEnabled = false
             }
             AppOperationMode.ADBLOCK_ONLY.ordinal -> {
                 binding.rbOpAdBlockOnly.isChecked = true
                 binding.bypassModeCard.visibility = View.GONE
                 binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_shield))
-                binding.switchAdBlock.isChecked = true
-                binding.switchAdBlock.isEnabled = false
             }
             AppOperationMode.VPN_ONLY.ordinal -> {
                 binding.rbOpVpnOnly.isChecked = true
                 binding.bypassModeCard.visibility = View.VISIBLE
                 binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_cyan))
-                binding.switchAdBlock.isChecked = false
-                binding.switchAdBlock.isEnabled = false
             }
             else -> {
                 binding.rbOpWarp.isChecked = true
                 binding.bypassModeCard.visibility = View.GONE
                 binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.cloudflare_orange))
-                binding.switchAdBlock.isChecked = isAdBlockEnabled
-                binding.switchAdBlock.isEnabled = true
             }
         }
 
         binding.switchAdBlock.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("adblock_enabled", isChecked).apply()
+            if (!isChecked) {
+                binding.rbOpVpnOnly.isChecked = true
+            } else if (binding.rbOpVpnOnly.isChecked) {
+                binding.rbOpWarp.isChecked = true
+            }
         }
 
         binding.rgOpModes.setOnCheckedChangeListener { _, checkedId ->
@@ -168,30 +165,33 @@ class MainActivity : AppCompatActivity() {
                 R.id.rbOpFull -> {
                     binding.bypassModeCard.visibility = View.VISIBLE
                     binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_emerald))
-                    binding.switchAdBlock.isChecked = true
-                    binding.switchAdBlock.isEnabled = false
+                    if (!binding.switchAdBlock.isChecked) {
+                        binding.switchAdBlock.isChecked = true
+                    }
                     AppOperationMode.VPN_AND_ADBLOCK
                 }
                 R.id.rbOpAdBlockOnly -> {
                     binding.bypassModeCard.visibility = View.GONE
                     binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_shield))
-                    binding.switchAdBlock.isChecked = true
-                    binding.switchAdBlock.isEnabled = false
+                    if (!binding.switchAdBlock.isChecked) {
+                        binding.switchAdBlock.isChecked = true
+                    }
                     AppOperationMode.ADBLOCK_ONLY
                 }
                 R.id.rbOpVpnOnly -> {
                     binding.bypassModeCard.visibility = View.VISIBLE
                     binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_cyan))
-                    binding.switchAdBlock.isChecked = false
-                    binding.switchAdBlock.isEnabled = false
+                    if (binding.switchAdBlock.isChecked) {
+                        binding.switchAdBlock.isChecked = false
+                    }
                     AppOperationMode.VPN_ONLY
                 }
                 else -> {
                     binding.bypassModeCard.visibility = View.GONE
                     binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.cloudflare_orange))
-                    val warpAdBlock = prefs.getBoolean("adblock_enabled", true)
-                    binding.switchAdBlock.isChecked = warpAdBlock
-                    binding.switchAdBlock.isEnabled = true
+                    if (!binding.switchAdBlock.isChecked) {
+                        binding.switchAdBlock.isChecked = true
+                    }
                     AppOperationMode.WARP_AND_ADBLOCK
                 }
             }
@@ -399,8 +399,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setModeControlsEnabled(enabled: Boolean) {
-        val isWarp = binding.rbOpWarp.isChecked
-        binding.switchAdBlock.isEnabled = enabled && isWarp
+        binding.switchAdBlock.isEnabled = enabled
         binding.rbOpWarp.isEnabled = enabled
         binding.rbOpFull.isEnabled = enabled
         binding.rbOpAdBlockOnly.isEnabled = enabled
@@ -744,22 +743,12 @@ class MainActivity : AppCompatActivity() {
             dialogBinding.layoutUpstreams.visibility = View.VISIBLE
 
             val appResult = status.appUpdate
-            val anyUpstreamUpdate = status.upstreams.any { !it.isUpToDate }
 
             if (appResult.hasUpdate) {
                 dialogBinding.tvUpdateMsg.text = getString(R.string.update_available_msg, appResult.latestVersion ?: "")
                 dialogBinding.btnDownloadUpdate.visibility = View.VISIBLE
                 dialogBinding.btnDownloadUpdate.setOnClickListener {
                     val url = appResult.downloadUrl ?: appResult.releasePageUrl ?: "https://github.com/mohammedjaferalshouha/ubour-vpn/releases"
-                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                    startActivity(browserIntent)
-                    dialog.dismiss()
-                }
-            } else if (anyUpstreamUpdate) {
-                dialogBinding.tvUpdateMsg.text = "تتوفر إصدارات جديدة لبعض المحركات المعتمدة."
-                dialogBinding.btnDownloadUpdate.visibility = View.VISIBLE
-                dialogBinding.btnDownloadUpdate.setOnClickListener {
-                    val url = appResult.releasePageUrl ?: "https://github.com/mohammedjaferalshouha/ubour-vpn/releases"
                     val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                     startActivity(browserIntent)
                     dialog.dismiss()

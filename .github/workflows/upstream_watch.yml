@@ -1,0 +1,142 @@
+name: Automated Upstream Watcher & Engine Sync
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check-upstreams:
+    name: Check Upstream Releases & Auto-Tag
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Check and Update Upstreams
+        id: updater
+        shell: python
+        run: |
+          import urllib.request
+          import json
+          import re
+          import os
+
+          def get_latest_tag(repo):
+              url = f'https://api.github.com/repos/{repo}/releases/latest'
+              req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+              try:
+                  with urllib.request.urlopen(req) as resp:
+                      data = json.loads(resp.read().decode())
+                      tag = data.get('tag_name', '').lstrip('v')
+                      return tag
+              except Exception as e:
+                  print(f"Error checking {repo}: {e}")
+                  return None
+
+          singbox_latest = get_latest_tag('SagerNet/sing-box')
+          byedpi_latest = get_latest_tag('hufrea/byedpi')
+          goodbyedpi_latest = get_latest_tag('ValdikSS/GoodbyeDPI')
+
+          print(f"Latest Upstreams: sing-box={singbox_latest}, byedpi={byedpi_latest}, goodbyedpi={goodbyedpi_latest}")
+
+          service_file = 'apk+ublock/app/src/main/java/com/ubour/vpn/service/UpdateService.kt'
+          gradle_file = 'apk+ublock/app/build.gradle.kts'
+
+          if not os.path.exists(service_file) or not os.path.exists(gradle_file):
+              print("Files not found, skipping.")
+              exit(0)
+
+          with open(service_file, 'r', encoding='utf-8') as f:
+              service_content = f.read()
+
+          m_sb = re.search(r'CURRENT_SINGBOX_VERSION\s*=\s*"([^"]+)"', service_content)
+          current_sb = m_sb.group(1) if m_sb else None
+
+          m_bye = re.search(r'CURRENT_BYEDPI_VERSION\s*=\s*"([^"]+)"', service_content)
+          current_bye = m_bye.group(1) if m_bye else None
+
+          m_gdpi = re.search(r'CURRENT_GOODBYEDPI_VERSION\s*=\s*"([^"]+)"', service_content)
+          current_gdpi = m_gdpi.group(1) if m_gdpi else None
+
+          needs_update = False
+          if singbox_latest and current_sb and singbox_latest != current_sb:
+              print(f"sing-box update available: {current_sb} -> {singbox_latest}")
+              service_content = service_content.replace(f'CURRENT_SINGBOX_VERSION = "{current_sb}"', f'CURRENT_SINGBOX_VERSION = "{singbox_latest}"')
+              needs_update = True
+
+          if byedpi_latest and current_bye and byedpi_latest != current_bye:
+              print(f"byedpi update available: {current_bye} -> {byedpi_latest}")
+              service_content = service_content.replace(f'CURRENT_BYEDPI_VERSION = "{current_bye}"', f'CURRENT_BYEDPI_VERSION = "{byedpi_latest}"')
+              needs_update = True
+
+          if goodbyedpi_latest and current_gdpi and goodbyedpi_latest != current_gdpi:
+              print(f"goodbyedpi update available: {current_gdpi} -> {goodbyedpi_latest}")
+              service_content = service_content.replace(f'CURRENT_GOODBYEDPI_VERSION = "{current_gdpi}"', f'CURRENT_GOODBYEDPI_VERSION = "{goodbyedpi_latest}"')
+              needs_update = True
+
+          if not needs_update:
+              print("All upstream engines are up to date.")
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+                  out.write("has_update=false\n")
+              exit(0)
+
+          # Write updated UpdateService.kt
+          with open(service_file, 'w', encoding='utf-8') as f:
+              f.write(service_content)
+
+          # Bump Gradle versionCode and versionName
+          with open(gradle_file, 'r', encoding='utf-8') as f:
+              gradle_content = f.read()
+
+          m_vc = re.search(r'versionCode\s*=\s*(\d+)', gradle_content)
+          m_vn = re.search(r'versionName\s*=\s*"([^"]+)"', gradle_content)
+
+          if m_vc and m_vn:
+              old_vc = int(m_vc.group(1))
+              new_vc = old_vc + 1
+              old_vn = m_vn.group(1)
+              vn_parts = old_vn.split('.')
+              if len(vn_parts) >= 3 and vn_parts[-1].isdigit():
+                  vn_parts[-1] = str(int(vn_parts[-1]) + 1)
+                  new_vn = '.'.join(vn_parts)
+              else:
+                  new_vn = f"{old_vn}.1"
+
+              gradle_content = re.sub(r'versionCode\s*=\s*\d+', f'versionCode = {new_vc}', gradle_content)
+              gradle_content = re.sub(r'versionName\s*=\s*"[^"]+"', f'versionName = "{new_vn}"', gradle_content)
+
+              with open(gradle_file, 'w', encoding='utf-8') as f:
+                  f.write(gradle_content)
+
+              print(f"Bumped version to {new_vn} (code {new_vc})")
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+                  out.write("has_update=true\n")
+                  out.write(f"new_version={new_vn}\n")
+                  out.write(f"tag_name=v{new_vn}\n")
+          else:
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+                  out.write("has_update=false\n")
+
+      - name: Commit, Tag & Push New Release
+        if: steps.updater.outputs.has_update == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apk+ublock/app/src/main/java/com/ubour/vpn/service/UpdateService.kt apk+ublock/app/build.gradle.kts
+          git commit -m "chore(deps): auto-update upstream engines to latest and bump version to ${{ steps.updater.outputs.new_version }}"
+          git tag "${{ steps.updater.outputs.tag_name }}"
+          git push origin main
+          git push origin "${{ steps.updater.outputs.tag_name }}"
