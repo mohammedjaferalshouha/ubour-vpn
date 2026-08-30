@@ -38,7 +38,7 @@ object UpdateService {
     val CURRENT_APP_VERSION: String
         get() = BuildConfig.VERSION_NAME
 
-    private const val CURRENT_SINGBOX_VERSION = "1.13.19"
+    private const val CURRENT_SINGBOX_VERSION = "1.13.20"
     private const val CURRENT_BYEDPI_VERSION = "0.17.3"
     private const val CURRENT_GOODBYEDPI_VERSION = "0.2.3rc3"
 
