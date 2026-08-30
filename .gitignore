@@ -47,7 +47,7 @@ publish/
 release_out/
 
 # Analysis & temporary
-graphify-out/
+graphify-out/cache/
 qa_screenshots/
 *.log
 
