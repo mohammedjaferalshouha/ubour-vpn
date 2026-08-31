@@ -19,7 +19,7 @@ public class UpdateInfo
 
 public static class UpdateManager
 {
-    public const string CurrentVersion = "1.6.1";
+    public const string CurrentVersion = "1.6.2";
     public const string GitHubApiUrl = "https://api.github.com/repos/mohammedjaferalshouha/ubour-vpn/releases/latest";
     public const string ReleasesPageUrl = "https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest";
 
