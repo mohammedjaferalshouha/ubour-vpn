@@ -79,7 +79,7 @@ public static class DnsManager
         }
     }
 
-    private static (string primaryV4, string secondaryV4, string primaryV6, string secondaryV6) ResolveDnsPair(string primaryDns)
+    public static (string primaryV4, string secondaryV4, string primaryV6, string secondaryV6) ResolveDnsPair(string primaryDns)
     {
         return primaryDns switch
         {

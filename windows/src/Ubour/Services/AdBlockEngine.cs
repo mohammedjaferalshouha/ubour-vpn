@@ -24,6 +24,7 @@ public class AdBlockEngine
         "chatgpt.com", "openai.com", "chat.openai.com", "ws.chatgpt.com",
         "whatsapp.com", "whatsapp.net", "web.whatsapp.com",
         "cloudflare.com", "microsoft.com", "apple.com", "github.com", "githubusercontent.com",
+        "dns.msftncsi.com", "msftncsi.com", "www.msftconnecttest.com", "msftconnecttest.com", "ipv6.msftconnecttest.com",
         "netlify.app", "global-weather-observatory.netlify.app",
         "speedtest.net", "www.speedtest.net", "fast.com", "netflix.com",
         "turtlecute.org", "adblock.turtlecute.org", "adblock-tester.com", "d3ward.github.io"
@@ -63,6 +64,7 @@ public class AdBlockEngine
     private TcpListener? _tcpServerV6;
     private CancellationTokenSource? _cts;
     private string _upstreamDns = "1.1.1.1";
+    private string _secondaryDns = "1.0.0.1";
     public bool IsRunning { get; private set; } = false;
 
     public static void ResetStats()
@@ -281,10 +283,18 @@ public class AdBlockEngine
         }
     }
 
-    public bool Start(string upstreamDns = "1.1.1.1", int port = 53)
+    public bool Start(string upstreamDns = "1.1.1.1", string? secondaryDns = null, int port = 53)
     {
         Stop();
         _upstreamDns = !string.IsNullOrWhiteSpace(upstreamDns) ? upstreamDns : "1.1.1.1";
+        if (!string.IsNullOrWhiteSpace(secondaryDns))
+        {
+            _secondaryDns = secondaryDns;
+        }
+        else
+        {
+            _secondaryDns = DnsManager.ResolveDnsPair(_upstreamDns).secondaryV4;
+        }
         _cts = new CancellationTokenSource();
 
         try
@@ -308,7 +318,7 @@ public class AdBlockEngine
             catch { }
 
             IsRunning = true;
-            AppLogger.Info($"[DNS Filter] Started on 127.0.0.1 & [::1]:{port} (Dual-Stack) with upstream {upstreamDns}");
+            AppLogger.Info($"[DNS Filter] Started on 127.0.0.1 & [::1]:{port} (Dual-Stack) with upstream {_upstreamDns} and backup {_secondaryDns}");
             return true;
         }
         catch
@@ -376,6 +386,15 @@ public class AdBlockEngine
         try
         {
             string? qname = ParseQName(query);
+
+            // Instant authoritative response for Windows NCSI probe
+            if (qname != null && qname.Equals("dns.msftncsi.com", StringComparison.OrdinalIgnoreCase))
+            {
+                byte[] ncsiResp = CreateStaticAResponse(query, IPAddress.Parse("131.107.255.255"));
+                await server.SendAsync(ncsiResp, ncsiResp.Length, clientEp);
+                return;
+            }
+
             if (qname != null && IsDomainBlocked(qname))
             {
                 byte[] blockedResp = CreateBlockedResponse(query);
@@ -383,14 +402,24 @@ public class AdBlockEngine
                 return;
             }
 
-            var upstreamEp = new IPEndPoint(IPAddress.Parse(_upstreamDns), 53);
-            using var forwarder = new UdpClient();
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeoutCts.CancelAfter(2500);
+            // Primary upstream with 2500ms timeout
+            byte[]? upstreamResp = await QueryUpstreamUdpAsync(query, _upstreamDns, 2500, ct);
 
-            await forwarder.SendAsync(query, query.Length, upstreamEp);
-            var upstreamResp = await forwarder.ReceiveAsync(timeoutCts.Token);
-            await server.SendAsync(upstreamResp.Buffer, upstreamResp.Buffer.Length, clientEp);
+            // Failover to secondary upstream if primary failed or timed out
+            if (upstreamResp == null && !string.IsNullOrWhiteSpace(_secondaryDns) && _secondaryDns != _upstreamDns)
+            {
+                upstreamResp = await QueryUpstreamUdpAsync(query, _secondaryDns, 2500, ct);
+            }
+
+            if (upstreamResp != null)
+            {
+                await server.SendAsync(upstreamResp, upstreamResp.Length, clientEp);
+            }
+            else
+            {
+                byte[] servFail = CreateServFailResponse(query);
+                await server.SendAsync(servFail, servFail.Length, clientEp);
+            }
         }
         catch { }
     }
@@ -416,8 +445,8 @@ public class AdBlockEngine
             try
             {
                 using var stream = client.GetStream();
-                stream.ReadTimeout = 2500;
-                stream.WriteTimeout = 2500;
+                stream.ReadTimeout = 3000;
+                stream.WriteTimeout = 3000;
 
                 byte[] lenBuf = new byte[2];
                 int read = await stream.ReadAsync(lenBuf, 0, 2, ct);
@@ -437,6 +466,17 @@ public class AdBlockEngine
                 if (totalRead < queryLen) return;
 
                 string? qname = ParseQName(queryBuf);
+
+                // Instant authoritative response for Windows NCSI probe
+                if (qname != null && qname.Equals("dns.msftncsi.com", StringComparison.OrdinalIgnoreCase))
+                {
+                    byte[] ncsiResp = CreateStaticAResponse(queryBuf, IPAddress.Parse("131.107.255.255"));
+                    byte[] outLenBuf = new byte[] { (byte)((ncsiResp.Length >> 8) & 0xFF), (byte)(ncsiResp.Length & 0xFF) };
+                    await stream.WriteAsync(outLenBuf, 0, 2, ct);
+                    await stream.WriteAsync(ncsiResp, 0, ncsiResp.Length, ct);
+                    return;
+                }
+
                 if (qname != null && IsDomainBlocked(qname))
                 {
                     byte[] blockedResp = CreateBlockedResponse(queryBuf);
@@ -446,31 +486,25 @@ public class AdBlockEngine
                     return;
                 }
 
-                using var upstreamTcp = new TcpClient();
-                await upstreamTcp.ConnectAsync(IPAddress.Parse(_upstreamDns), 53, ct);
-                using var upStream = upstreamTcp.GetStream();
-                upStream.ReadTimeout = 2500;
-                upStream.WriteTimeout = 2500;
-
-                await upStream.WriteAsync(lenBuf, 0, 2, ct);
-                await upStream.WriteAsync(queryBuf, 0, queryLen, ct);
-
-                byte[] upLenBuf = new byte[2];
-                int upRead = await upStream.ReadAsync(upLenBuf, 0, 2, ct);
-                if (upRead < 2) return;
-
-                int respLen = (upLenBuf[0] << 8) | upLenBuf[1];
-                byte[] respBuf = new byte[respLen];
-                int totalRespRead = 0;
-                while (totalRespRead < respLen)
+                byte[]? tcpResp = await QueryUpstreamTcpAsync(queryBuf, _upstreamDns, 2500, ct);
+                if (tcpResp == null && !string.IsNullOrWhiteSpace(_secondaryDns) && _secondaryDns != _upstreamDns)
                 {
-                    int r = await upStream.ReadAsync(respBuf, totalRespRead, respLen - totalRespRead, ct);
-                    if (r <= 0) break;
-                    totalRespRead += r;
+                    tcpResp = await QueryUpstreamTcpAsync(queryBuf, _secondaryDns, 2500, ct);
                 }
 
-                await stream.WriteAsync(upLenBuf, 0, 2, ct);
-                await stream.WriteAsync(respBuf, 0, totalRespRead, ct);
+                if (tcpResp != null)
+                {
+                    byte[] outLenBuf = new byte[] { (byte)((tcpResp.Length >> 8) & 0xFF), (byte)(tcpResp.Length & 0xFF) };
+                    await stream.WriteAsync(outLenBuf, 0, 2, ct);
+                    await stream.WriteAsync(tcpResp, 0, tcpResp.Length, ct);
+                }
+                else
+                {
+                    byte[] servFail = CreateServFailResponse(queryBuf);
+                    byte[] outLenBuf = new byte[] { (byte)((servFail.Length >> 8) & 0xFF), (byte)(servFail.Length & 0xFF) };
+                    await stream.WriteAsync(outLenBuf, 0, 2, ct);
+                    await stream.WriteAsync(servFail, 0, servFail.Length, ct);
+                }
             }
             catch { }
         }
@@ -593,6 +627,132 @@ public class AdBlockEngine
 
             bw.Write(query, 12, questionLength - 12);
         }
+
+        return ms.ToArray();
+    }
+
+    private static async Task<byte[]?> QueryUpstreamUdpAsync(byte[] query, string upstreamIp, int timeoutMs, CancellationToken ct)
+    {
+        try
+        {
+            var upstreamEp = new IPEndPoint(IPAddress.Parse(upstreamIp), 53);
+            using var forwarder = new UdpClient();
+            forwarder.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(timeoutMs);
+
+            await forwarder.SendAsync(query, query.Length, upstreamEp);
+            var result = await forwarder.ReceiveAsync(timeoutCts.Token);
+            return result.Buffer;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static async Task<byte[]?> QueryUpstreamTcpAsync(byte[] query, string upstreamIp, int timeoutMs, CancellationToken ct)
+    {
+        try
+        {
+            using var upstreamTcp = new TcpClient();
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(timeoutMs);
+
+            await upstreamTcp.ConnectAsync(IPAddress.Parse(upstreamIp), 53, timeoutCts.Token);
+            using var upStream = upstreamTcp.GetStream();
+            upStream.ReadTimeout = timeoutMs;
+            upStream.WriteTimeout = timeoutMs;
+
+            byte[] lenBuf = new byte[] { (byte)((query.Length >> 8) & 0xFF), (byte)(query.Length & 0xFF) };
+            await upStream.WriteAsync(lenBuf, 0, 2, timeoutCts.Token);
+            await upStream.WriteAsync(query, 0, query.Length, timeoutCts.Token);
+
+            byte[] upLenBuf = new byte[2];
+            int upRead = await upStream.ReadAsync(upLenBuf, 0, 2, timeoutCts.Token);
+            if (upRead < 2) return null;
+
+            int respLen = (upLenBuf[0] << 8) | upLenBuf[1];
+            if (respLen <= 0 || respLen > 4096) return null;
+
+            byte[] respBuf = new byte[respLen];
+            int totalRespRead = 0;
+            while (totalRespRead < respLen)
+            {
+                int r = await upStream.ReadAsync(respBuf, totalRespRead, respLen - totalRespRead, timeoutCts.Token);
+                if (r <= 0) break;
+                totalRespRead += r;
+            }
+            return totalRespRead == respLen ? respBuf : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static byte[] CreateServFailResponse(byte[] query)
+    {
+        if (query.Length < 12) return query;
+        byte[] resp = (byte[])query.Clone();
+        resp[2] = 0x81;
+        resp[3] = 0x82; // SERVFAIL
+        return resp;
+    }
+
+    private static byte[] CreateStaticAResponse(byte[] query, IPAddress ip)
+    {
+        if (query.Length < 12) return query;
+
+        int offset = 12;
+        while (offset < query.Length)
+        {
+            int len = query[offset] & 0xFF;
+            if (len == 0)
+            {
+                offset += 1;
+                break;
+            }
+            offset += len + 1;
+        }
+
+        if (offset + 4 > query.Length) return query;
+
+        int questionLength = offset + 4;
+
+        using var ms = new MemoryStream();
+        using var bw = new BinaryWriter(ms);
+
+        bw.Write(query[0]);
+        bw.Write(query[1]);
+        bw.Write((byte)0x81);
+        bw.Write((byte)0x80); // Flags: standard response, NOERROR
+        bw.Write((byte)0x00);
+        bw.Write((byte)0x01); // QDCOUNT = 1
+        bw.Write((byte)0x00);
+        bw.Write((byte)0x01); // ANCOUNT = 1
+        bw.Write((byte)0x00);
+        bw.Write((byte)0x00); // NSCOUNT = 0
+        bw.Write((byte)0x00);
+        bw.Write((byte)0x00); // ARCOUNT = 0
+
+        bw.Write(query, 12, questionLength - 12);
+
+        bw.Write((byte)0xC0);
+        bw.Write((byte)0x0C); // Pointer to QNAME
+        bw.Write((byte)0x00);
+        bw.Write((byte)0x01); // Type A (1)
+        bw.Write((byte)0x00);
+        bw.Write((byte)0x01); // Class IN (1)
+        bw.Write((byte)0x00);
+        bw.Write((byte)0x00);
+        bw.Write((byte)0x00);
+        bw.Write((byte)0x3C); // TTL = 60
+        bw.Write((byte)0x00);
+        bw.Write((byte)0x04); // RDLENGTH = 4
+
+        byte[] ipBytes = ip.GetAddressBytes();
+        bw.Write(ipBytes, 0, 4);
 
         return ms.ToArray();
     }
