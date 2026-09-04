@@ -68,6 +68,15 @@ public class GoodbyeDpiManager
             };
 
             _process = Process.Start(startInfo);
+            if (_process != null && !_process.HasExited)
+            {
+                _process.EnableRaisingEvents = true;
+                _process.Exited += (s, e) =>
+                {
+                    AppLogger.Warn("[GoodbyeDPI] Process exited or crashed unexpectedly. Cleaning up WinDivert driver...");
+                    CleanupWinDivertService();
+                };
+            }
             AppLogger.Info($"[GoodbyeDPI] Started with arguments: {args}");
             return _process != null && !_process.HasExited;
         }
@@ -84,6 +93,7 @@ public class GoodbyeDpiManager
         {
             if (_process != null)
             {
+                try { _process.EnableRaisingEvents = false; } catch { }
                 if (!_process.HasExited)
                 {
                     _process.Kill(true);

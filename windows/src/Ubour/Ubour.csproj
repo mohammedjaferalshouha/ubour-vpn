@@ -13,10 +13,10 @@
     <RootNamespace>Ubour</RootNamespace>
     <PublishSingleFile>false</PublishSingleFile>
     <SelfContained>false</SelfContained>
-    <Version>1.6.2</Version>
-    <AssemblyVersion>1.6.2.0</AssemblyVersion>
-    <FileVersion>1.6.2.0</FileVersion>
-    <InformationalVersion>1.6.2</InformationalVersion>
+    <Version>1.6.3</Version>
+    <AssemblyVersion>1.6.3.0</AssemblyVersion>
+    <FileVersion>1.6.3.0</FileVersion>
+    <InformationalVersion>1.6.3</InformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>

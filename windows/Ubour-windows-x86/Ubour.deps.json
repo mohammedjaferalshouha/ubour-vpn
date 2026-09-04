@@ -7,7 +7,7 @@
   "targets": {
     ".NETCoreApp,Version=v10.0": {},
     ".NETCoreApp,Version=v10.0/win-x86": {
-      "Ubour/1.0.0": {
+      "Ubour/1.6.3": {
         "runtime": {
           "Ubour.dll": {}
         }
@@ -15,7 +15,7 @@
     }
   },
   "libraries": {
-    "Ubour/1.0.0": {
+    "Ubour/1.6.3": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

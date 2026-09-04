@@ -14,6 +14,9 @@ public class UpdateManagerTests
     [InlineData("v1.6.1", "1.6.1")]
     [InlineData("V1.6.1", "1.6.1")]
     [InlineData("1.6.1", "1.6.1")]
+    [InlineData("v1.6.3", "1.6.3")]
+    [InlineData("V1.6.3", "1.6.3")]
+    [InlineData("1.6.3", "1.6.3")]
     [InlineData("", "0.0.0")]
     [InlineData("   ", "0.0.0")]
     public void CleanVersion_ShouldStripPrefixAndTrim(string input, string expected)
@@ -24,6 +27,7 @@ public class UpdateManagerTests
 
     [Theory]
     [InlineData("1.6.1", "1.6.2", true)]
+    [InlineData("1.6.1", "1.6.3", true)]
     [InlineData("1.6.1", "1.7.0", true)]
     [InlineData("1.6.1", "2.0.0", true)]
     [InlineData("1.6.1", "v1.6.2", true)]
@@ -32,6 +36,11 @@ public class UpdateManagerTests
     [InlineData("1.6.1", "1.6.0", false)]
     [InlineData("1.6.1", "1.5.9", false)]
     [InlineData("1.6.1", "0.9.9", false)]
+    [InlineData("1.6.3", "1.6.4", true)]
+    [InlineData("1.6.3", "1.7.0", true)]
+    [InlineData("1.6.3", "1.6.3", false)]
+    [InlineData("1.6.3", "v1.6.3", false)]
+    [InlineData("1.6.3", "1.6.2", false)]
     public void IsNewerVersion_ShouldCompareCorrectly(string current, string remote, bool expected)
     {
         var result = UpdateManager.IsNewerVersion(current, remote);

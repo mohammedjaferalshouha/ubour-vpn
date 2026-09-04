@@ -15,7 +15,7 @@ public class DnsManagerTests
     [InlineData("208.67.222.222", "208.67.222.222", "208.67.220.220")]
     public void DnsManager_ResolveDnsPair_ReturnsValidPrimaryAndSecondary(string input, string expectedPrimary, string expectedSecondary)
     {
-        var method = typeof(DnsManager).GetMethod("ResolveDnsPair", BindingFlags.NonPublic | BindingFlags.Static);
+        var method = typeof(DnsManager).GetMethod("ResolveDnsPair", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
         Assert.NotNull(method);
 
         var result = method.Invoke(null, new object[] { input });
