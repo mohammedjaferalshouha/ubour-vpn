@@ -100,7 +100,7 @@ object UpdateService {
                     }
                 }
 
-                val hasUpdate = isNewerVersion(tagName, currentVer)
+                val hasUpdate = isNewerVersion(tagName, currentVer) && !apkUrl.isNullOrBlank()
 
                 UpdateInfo(
                     hasUpdate = hasUpdate,
@@ -174,7 +174,7 @@ object UpdateService {
         null
     }
 
-    private fun isNewerVersion(latest: String, current: String): Boolean {
+    fun isNewerVersion(latest: String, current: String): Boolean {
         if (latest.isBlank() || current.isBlank()) return false
         try {
             val latestParts = latest.split(".").map { it.filter { ch -> ch.isDigit() }.toIntOrNull() ?: 0 }

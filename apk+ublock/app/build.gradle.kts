@@ -17,12 +17,15 @@ android {
     compileSdk = 35
     ndkVersion = "25.1.8937393"
 
+    val propVersionCode = project.findProperty("appVersionCode")?.toString()?.toIntOrNull()
+    val propVersionName = project.findProperty("appVersionName")?.toString()
+
     defaultConfig {
         applicationId = "com.ubour.vpn"
         minSdk = 24
         targetSdk = 35
-        versionCode = 10
-        versionName = "1.6.1"
+        versionCode = propVersionCode ?: 11
+        versionName = propVersionName ?: "1.6.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
