@@ -49,10 +49,28 @@ jobs:
           cd "apk+ublock"
           ./gradlew test lint --no-daemon
 
+      - name: Configure Dynamic Android Version from Tag
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG_VER="${{ github.ref_name }}"
+            TAG_VER="${TAG_VER#v}"
+            echo "Extracting release version from tag: $TAG_VER"
+            IFS='.' read -r major minor patch <<< "$TAG_VER"
+            VCODE=$(( ${major:-1} * 10000 + ${minor:-0} * 100 + ${patch:-0} ))
+            echo "Derived versionCode: $VCODE, versionName: $TAG_VER"
+            echo "BUILD_VERSION_NAME=$TAG_VER" >> $GITHUB_ENV
+            echo "BUILD_VERSION_CODE=$VCODE" >> $GITHUB_ENV
+          fi
+
       - name: Build Release APK
         run: |
           cd "apk+ublock"
-          ./gradlew assembleRelease --no-daemon
+          if [ -n "$BUILD_VERSION_NAME" ]; then
+            echo "Building APK with versionName=$BUILD_VERSION_NAME and versionCode=$BUILD_VERSION_CODE"
+            ./gradlew assembleRelease -PappVersionName="$BUILD_VERSION_NAME" -PappVersionCode="$BUILD_VERSION_CODE" --no-daemon
+          else
+            ./gradlew assembleRelease --no-daemon
+          fi
 
       - name: Prepare & Verify Release Artifacts
         run: |
@@ -137,9 +155,23 @@ jobs:
           dotnet restore windows/src/Ubour/Ubour.csproj
           dotnet restore windows/src/Ubour.Tests/Ubour.Tests.csproj
 
-      - name: Build Windows Client (Release)
+      - name: Configure Dynamic Windows Version from Tag
+        shell: pwsh
         run: |
-          dotnet build windows/src/Ubour/Ubour.csproj -c Release --no-restore
+          if ("${{ github.ref }}" -like "refs/tags/v*") {
+            $tagVer = "${{ github.ref_name }}".TrimStart('v', 'V')
+            Write-Host "Configuring Windows build version from tag: $tagVer"
+            Add-Content -Path $env:GITHUB_ENV -Value "BUILD_VERSION_WIN=$tagVer"
+          }
+
+      - name: Build Windows Client (Release)
+        shell: pwsh
+        run: |
+          if ($env:BUILD_VERSION_WIN) {
+            dotnet build windows/src/Ubour/Ubour.csproj -c Release --no-restore /p:Version="$env:BUILD_VERSION_WIN" /p:AssemblyVersion="$env:BUILD_VERSION_WIN.0" /p:FileVersion="$env:BUILD_VERSION_WIN.0" /p:InformationalVersion="$env:BUILD_VERSION_WIN"
+          } else {
+            dotnet build windows/src/Ubour/Ubour.csproj -c Release --no-restore
+          }
 
       - name: Run Windows Unit Tests
         run: |
@@ -150,8 +182,13 @@ jobs:
         run: |
           mkdir -p publish/Ubour-windows-x64
           mkdir -p publish/Ubour-windows-x86
-          dotnet publish windows/src/Ubour/Ubour.csproj -c Release -r win-x64 --self-contained false -o publish/Ubour-windows-x64
-          dotnet publish windows/src/Ubour/Ubour.csproj -c Release -r win-x86 --self-contained false -o publish/Ubour-windows-x86
+          if ($env:BUILD_VERSION_WIN) {
+            dotnet publish windows/src/Ubour/Ubour.csproj -c Release -r win-x64 --self-contained false -o publish/Ubour-windows-x64 /p:Version="$env:BUILD_VERSION_WIN" /p:AssemblyVersion="$env:BUILD_VERSION_WIN.0" /p:FileVersion="$env:BUILD_VERSION_WIN.0" /p:InformationalVersion="$env:BUILD_VERSION_WIN"
+            dotnet publish windows/src/Ubour/Ubour.csproj -c Release -r win-x86 --self-contained false -o publish/Ubour-windows-x86 /p:Version="$env:BUILD_VERSION_WIN" /p:AssemblyVersion="$env:BUILD_VERSION_WIN.0" /p:FileVersion="$env:BUILD_VERSION_WIN.0" /p:InformationalVersion="$env:BUILD_VERSION_WIN"
+          } else {
+            dotnet publish windows/src/Ubour/Ubour.csproj -c Release -r win-x64 --self-contained false -o publish/Ubour-windows-x64
+            dotnet publish windows/src/Ubour/Ubour.csproj -c Release -r win-x86 --self-contained false -o publish/Ubour-windows-x86
+          }
 
           # Package x64 Assets
           Copy-Item -Path 'windows/Ubour-windows-x64/engine' -Destination 'publish/Ubour-windows-x64/engine' -Recurse -Force -ErrorAction SilentlyContinue

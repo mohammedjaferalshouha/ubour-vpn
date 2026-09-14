@@ -51,4 +51,18 @@ class UpdateServiceTest {
         assertEquals(1, status.upstreams.size)
         assertTrue(status.upstreams[0].isUpToDate)
     }
+
+    @Test
+    fun testIsNewerVersionLogic() {
+        assertTrue(UpdateService.isNewerVersion("1.6.4", "1.6.1"))
+        assertTrue(UpdateService.isNewerVersion("1.7.0", "1.6.4"))
+        assertTrue(UpdateService.isNewerVersion("2.0.0", "1.9.9"))
+        assertTrue(UpdateService.isNewerVersion("1.6.4.1", "1.6.4"))
+        
+        assertFalse(UpdateService.isNewerVersion("1.6.4", "1.6.4"))
+        assertFalse(UpdateService.isNewerVersion("1.6.1", "1.6.4"))
+        assertFalse(UpdateService.isNewerVersion("1.6.3", "1.6.4"))
+        assertFalse(UpdateService.isNewerVersion("", "1.6.4"))
+        assertFalse(UpdateService.isNewerVersion("1.6.4", ""))
+    }
 }
