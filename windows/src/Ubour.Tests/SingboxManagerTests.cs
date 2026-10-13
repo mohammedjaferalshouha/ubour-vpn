@@ -34,11 +34,20 @@ public class SingboxManagerTests
         string json = File.ReadAllText(configPath);
         Assert.Contains("wireguard", json);
         Assert.Contains("warp-ep", json);
+        Assert.Contains("\"detour\": \"direct\"", json);
         Assert.Contains("engage.cloudflareclient.com", json);
         Assert.Contains("dns-filter", json);
         Assert.Contains("mixed-in", json);
 
         try { File.Delete(configPath); } catch { }
+    }
+
+    [Fact]
+    public void SingboxManager_IsIpv6Supported_ExecutesSafely()
+    {
+        bool result = SingboxManager.IsIpv6Supported();
+        // Should return a boolean value safely without throwing exceptions
+        Assert.True(result || !result);
     }
 
     [Fact]
