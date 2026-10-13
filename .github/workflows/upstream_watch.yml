@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   check-upstreams:
@@ -101,8 +102,8 @@ jobs:
           with open(gradle_file, 'r', encoding='utf-8') as f:
               gradle_content = f.read()
 
-          m_vc = re.search(r'versionCode\s*=\s*(\d+)', gradle_content)
-          m_vn = re.search(r'versionName\s*=\s*"([^"]+)"', gradle_content)
+          m_vc = re.search(r'versionCode\s*=\s*(?:propVersionCode\s*\?:\s*)?(\d+)', gradle_content)
+          m_vn = re.search(r'versionName\s*=\s*(?:propVersionName\s*\?:\s*)?"([^"]+)"', gradle_content)
 
           if m_vc and m_vn:
               old_vc = int(m_vc.group(1))
@@ -115,8 +116,18 @@ jobs:
               else:
                   new_vn = f"{old_vn}.1"
 
-              gradle_content = re.sub(r'versionCode\s*=\s*\d+', f'versionCode = {new_vc}', gradle_content)
-              gradle_content = re.sub(r'versionName\s*=\s*"[^"]+"', f'versionName = "{new_vn}"', gradle_content)
+              if 'propVersionCode' in gradle_content:
+                  gradle_content = re.sub(r'versionCode\s*=\s*(?:propVersionCode\s*\?:\s*)\d+', f'versionCode = propVersionCode ?: {new_vc}', gradle_content)
+              else:
+                  gradle_content = re.sub(r'versionCode\s*=\s*\d+', f'versionCode = {new_vc}', gradle_content)
+
+              if 'propVersionName' in gradle_content:
+                  gradle_content = re.sub(r'versionName\s*=\s*(?:propVersionName\s*\?:\s*)"[^"]+"', f'versionName = propVersionName ?: "{new_vn}"', gradle_content)
+              else:
+                  gradle_content = re.sub(r'versionName\s*=\s*"[^"]+"', f'versionName = "{new_vn}"', gradle_content)
+
+              with open(gradle_file, 'w', encoding='utf-8') as f:
+                  f.write(gradle_content)
 
               # Bump Windows Ubour.csproj & UpdateManager.cs
               win_csproj = 'windows/src/Ubour/Ubour.csproj'
@@ -150,6 +161,9 @@ jobs:
 
       - name: Commit, Tag & Push New Release
         if: steps.updater.outputs.has_update == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -158,3 +172,6 @@ jobs:
           git tag "${{ steps.updater.outputs.tag_name }}"
           git push origin main
           git push origin "${{ steps.updater.outputs.tag_name }}"
+          sleep 3
+          echo "Triggering automated build and release workflow for tag ${{ steps.updater.outputs.tag_name }}..."
+          gh workflow run build_release.yml --ref "${{ steps.updater.outputs.tag_name }}"
