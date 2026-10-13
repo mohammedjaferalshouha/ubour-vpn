@@ -69,6 +69,25 @@ public class SingboxManager
         }
     }
 
+    public static bool IsIpv6Supported()
+    {
+        try
+        {
+            if (!Socket.OSSupportsIPv6)
+            {
+                return false;
+            }
+
+            using var socket = new Socket(AddressFamily.InterNetworkV6, SocketType.Dgram, ProtocolType.Udp);
+            socket.Bind(new IPEndPoint(IPAddress.IPv6Any, 0));
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private string GenerateWarpConfig(WarpConfig warp, bool enableAdBlock)
     {
         string tmpDir = Path.Combine(Path.GetTempPath(), "Ubour");
@@ -77,6 +96,15 @@ public class SingboxManager
 
         var dnsObj = BuildDnsConfig(enableAdBlock);
         var routeRules = BuildRouteRules(enableAdBlock, "warp-ep");
+
+        bool hasIpv6 = IsIpv6Supported();
+        string[] addresses = hasIpv6 && !string.IsNullOrWhiteSpace(warp.LocalIpv6)
+            ? new string[] { warp.LocalIpv4, warp.LocalIpv6 }
+            : new string[] { warp.LocalIpv4 };
+
+        string[] allowedIps = hasIpv6
+            ? new string[] { "0.0.0.0/0", "::/0" }
+            : new string[] { "0.0.0.0/0" };
 
         var configObj = new
         {
@@ -88,9 +116,10 @@ public class SingboxManager
                 {
                     type = "wireguard",
                     tag = "warp-ep",
+                    detour = "direct",
                     system = false,
                     name = "warp",
-                    address = new string[] { warp.LocalIpv4, warp.LocalIpv6 },
+                    address = addresses,
                     private_key = warp.PrivateKey,
                     mtu = 1280,
                     peers = new object[]
@@ -100,7 +129,7 @@ public class SingboxManager
                             address = warp.EndpointHost,
                             port = warp.EndpointPort,
                             public_key = warp.PeerPublicKey,
-                            allowed_ips = new string[] { "0.0.0.0/0", "::/0" },
+                            allowed_ips = allowedIps,
                             reserved = new int[] { warp.Reserved[0], warp.Reserved[1], warp.Reserved[2] }
                         }
                     }
