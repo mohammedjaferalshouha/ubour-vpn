@@ -27,14 +27,14 @@ public class SingboxManagerTests
         var method = typeof(SingboxManager).GetMethod("GenerateWarpConfig", BindingFlags.NonPublic | BindingFlags.Instance);
         Assert.NotNull(method);
 
-        string? configPath = method.Invoke(manager, new object[] { warpConfig, true }) as string;
+        string? configPath = method.Invoke(manager, new object?[] { warpConfig, true, null }) as string;
         Assert.NotNull(configPath);
         Assert.True(File.Exists(configPath));
 
         string json = File.ReadAllText(configPath);
         Assert.Contains("wireguard", json);
-        Assert.Contains("warp-ep", json);
-        Assert.Contains("\"detour\": \"direct\"", json);
+        Assert.DoesNotContain("\"detour\": \"direct\"", json);
+        Assert.Contains("tun-in", json);
         Assert.Contains("engage.cloudflareclient.com", json);
         Assert.Contains("dns-filter", json);
         Assert.Contains("mixed-in", json);
