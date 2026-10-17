@@ -109,8 +109,8 @@ public class SingboxManager
 
         string configFile = Path.Combine(configDir, "singbox_warp.json");
 
-        var dnsObj = BuildDnsConfig(enableAdBlock);
-        var routeRules = BuildRouteRules(enableAdBlock, "warp-ep");
+        var dnsObj = BuildDnsConfig(enableAdBlock, "warp-ep");
+        var routeRules = BuildRouteRules(enableAdBlock, "warp-ep", warp.EndpointHost, warp.EndpointPort);
 
         bool hasIpv6 = IsIpv6Supported();
         string[] addresses = hasIpv6 && !string.IsNullOrWhiteSpace(warp.LocalIpv6)
@@ -181,7 +181,8 @@ public class SingboxManager
             },
             route = new
             {
-                rules = routeRules
+                rules = routeRules,
+                auto_detect_interface = true
             }
         };
 
@@ -339,7 +340,7 @@ public class SingboxManager
         }
     }
 
-    private static object BuildDnsConfig(bool enableAdBlock = true)
+    private static object BuildDnsConfig(bool enableAdBlock = true, string mainOutbound = "direct", string upstreamDns = "1.1.1.1")
     {
         if (enableAdBlock)
         {
@@ -360,33 +361,53 @@ public class SingboxManager
         }
         else
         {
+            var serverObj = new Dictionary<string, object>
+            {
+                ["tag"] = "dns-remote",
+                ["type"] = "udp",
+                ["server"] = upstreamDns,
+                ["server_port"] = 53
+            };
+            if (mainOutbound != "direct")
+            {
+                serverObj["detour"] = mainOutbound;
+            }
+
             return new
             {
-                servers = new object[]
-                {
-                    new
-                    {
-                        tag = "dns-direct",
-                        type = "udp",
-                        server = "1.1.1.1",
-                        server_port = 53
-                    }
-                },
-                final = "dns-direct"
+                servers = new object[] { serverObj },
+                final = "dns-remote"
             };
         }
     }
 
-    private static object[] BuildRouteRules(bool enableAdBlock, string mainOutbound)
+    private static object[] BuildRouteRules(bool enableAdBlock, string mainOutbound, string? endpointHost = null, int endpointPort = 0)
     {
         var rules = new List<object>();
+
+        if (mainOutbound != "direct")
+        {
+            rules.Add(new
+            {
+                process_name = new string[] { "Ubour.exe" },
+                action = "route",
+                outbound = mainOutbound
+            });
+        }
+
+        rules.Add(new
+        {
+            port = new int[] { 53 },
+            action = "hijack-dns"
+        });
 
         if (enableAdBlock)
         {
             rules.Add(new
             {
-                port = new int[] { 53 },
-                action = "hijack-dns"
+                domain = new string[] { "ipv6a.cloudflare-dns.com", "ipv6b.cloudflare-dns.com" },
+                action = "route",
+                outbound = "direct"
             });
             rules.Add(new
             {
@@ -421,6 +442,39 @@ public class SingboxManager
             {
                 ip_cidr = new string[] { "0.0.0.0/32", "::0/128" },
                 action = "reject"
+            });
+        }
+
+        if (!string.IsNullOrWhiteSpace(endpointHost))
+        {
+            if (IPAddress.TryParse(endpointHost, out _))
+            {
+                rules.Add(new
+                {
+                    ip_cidr = new string[] { $"{endpointHost}/32" },
+                    action = "route",
+                    outbound = "direct"
+                });
+            }
+            else
+            {
+                rules.Add(new
+                {
+                    domain = new string[] { endpointHost },
+                    action = "route",
+                    outbound = "direct"
+                });
+            }
+        }
+
+        if (endpointPort > 0)
+        {
+            rules.Add(new
+            {
+                network = "udp",
+                port = new int[] { endpointPort },
+                action = "route",
+                outbound = "direct"
             });
         }
 
@@ -463,6 +517,7 @@ public class SingboxManager
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
             };
+            startInfo.EnvironmentVariables["ENABLE_DEPRECATED_MISSING_DOMAIN_RESOLVER"] = "true";
 
             _process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
             _process.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppLogger.Info($"[sing-box] {e.Data}"); };

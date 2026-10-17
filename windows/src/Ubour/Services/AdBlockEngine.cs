@@ -27,7 +27,8 @@ public class AdBlockEngine
         "dns.msftncsi.com", "msftncsi.com", "www.msftconnecttest.com", "msftconnecttest.com", "ipv6.msftconnecttest.com",
         "netlify.app", "global-weather-observatory.netlify.app",
         "speedtest.net", "www.speedtest.net", "fast.com", "netflix.com",
-        "turtlecute.org", "adblock.turtlecute.org", "adblock-tester.com", "d3ward.github.io"
+        "turtlecute.org", "adblock.turtlecute.org", "adblock-tester.com", "d3ward.github.io",
+        "ipv6a.cloudflare-dns.com", "ipv6b.cloudflare-dns.com"
     };
 
     private static readonly HashSet<string> AllowedAdSubdomains = new(StringComparer.OrdinalIgnoreCase)
