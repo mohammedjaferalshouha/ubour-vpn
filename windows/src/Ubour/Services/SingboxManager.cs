@@ -19,7 +19,7 @@ public class SingboxManager
     public bool StartWarp(string baseDir, WarpConfig warp, bool enableAdBlock = true)
     {
         Stop();
-        string configPath = GenerateWarpConfig(warp, enableAdBlock);
+        string configPath = GenerateWarpConfig(warp, enableAdBlock, baseDir);
         bool started = StartProcess(baseDir, configPath);
         if (started)
         {
@@ -88,11 +88,26 @@ public class SingboxManager
         }
     }
 
-    private string GenerateWarpConfig(WarpConfig warp, bool enableAdBlock)
+    private string GenerateWarpConfig(WarpConfig warp, bool enableAdBlock, string? baseDir = null)
     {
-        string tmpDir = Path.Combine(Path.GetTempPath(), "Ubour");
-        Directory.CreateDirectory(tmpDir);
-        string configFile = Path.Combine(tmpDir, "singbox_warp.json");
+        string configDir = !string.IsNullOrWhiteSpace(baseDir) && Directory.Exists(baseDir)
+            ? baseDir
+            : Path.Combine(Path.GetTempPath(), "Ubour");
+
+        try
+        {
+            Directory.CreateDirectory(configDir);
+            string testFile = Path.Combine(configDir, ".write_test");
+            File.WriteAllText(testFile, "test");
+            File.Delete(testFile);
+        }
+        catch
+        {
+            configDir = Path.Combine(Path.GetTempPath(), "Ubour");
+            Directory.CreateDirectory(configDir);
+        }
+
+        string configFile = Path.Combine(configDir, "singbox_warp.json");
 
         var dnsObj = BuildDnsConfig(enableAdBlock);
         var routeRules = BuildRouteRules(enableAdBlock, "warp-ep");
@@ -106,6 +121,27 @@ public class SingboxManager
             ? new string[] { "0.0.0.0/0", "::/0" }
             : new string[] { "0.0.0.0/0" };
 
+        var inboundsList = new List<object>
+        {
+            new
+            {
+                type = "tun",
+                tag = "tun-in",
+                interface_name = "Ubour-tun",
+                address = new string[] { "172.19.0.1/30" },
+                auto_route = true,
+                strict_route = false,
+                stack = "system"
+            },
+            new
+            {
+                type = "mixed",
+                tag = "mixed-in",
+                listen = "127.0.0.1",
+                listen_port = 2080
+            }
+        };
+
         var configObj = new
         {
             log = new { level = "info" },
@@ -116,7 +152,6 @@ public class SingboxManager
                 {
                     type = "wireguard",
                     tag = "warp-ep",
-                    detour = "direct",
                     system = false,
                     name = "warp",
                     address = addresses,
@@ -135,16 +170,7 @@ public class SingboxManager
                     }
                 }
             },
-            inbounds = new object[]
-            {
-                new
-                {
-                    type = "mixed",
-                    tag = "mixed-in",
-                    listen = "127.0.0.1",
-                    listen_port = 2080
-                }
-            },
+            inbounds = inboundsList.ToArray(),
             outbounds = new object[]
             {
                 new
@@ -155,8 +181,7 @@ public class SingboxManager
             },
             route = new
             {
-                rules = routeRules,
-                auto_detect_interface = true
+                rules = routeRules
             }
         };
 
@@ -403,7 +428,7 @@ public class SingboxManager
         {
             rules.Add(new
             {
-                inbound = new string[] { "mixed-in" },
+                inbound = new string[] { "tun-in", "mixed-in" },
                 action = "route",
                 outbound = mainOutbound
             });
@@ -481,7 +506,10 @@ public class SingboxManager
 
             if (!string.IsNullOrEmpty(_currentConfigFile) && File.Exists(_currentConfigFile))
             {
-                try { File.Delete(_currentConfigFile); } catch { }
+                if (_currentConfigFile.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase))
+                {
+                    try { File.Delete(_currentConfigFile); } catch { }
+                }
                 _currentConfigFile = null;
             }
         }
