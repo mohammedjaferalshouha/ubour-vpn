@@ -34,6 +34,7 @@ public class SingboxManagerTests
         string json = File.ReadAllText(configPath);
         Assert.Contains("wireguard", json);
         Assert.DoesNotContain("\"detour\": \"direct\"", json);
+        Assert.Contains("auto_detect_interface", json);
         Assert.Contains("tun-in", json);
         Assert.Contains("engage.cloudflareclient.com", json);
         Assert.Contains("dns-filter", json);
