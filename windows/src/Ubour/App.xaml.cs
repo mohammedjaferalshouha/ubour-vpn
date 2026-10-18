@@ -15,7 +15,7 @@ public partial class App : System.Windows.Application
         {
             try
             {
-                ProxyManager.DisableProxy();
+                ProxyManager.RestoreIfModified();
                 DnsManager.RestoreDnsIfModified();
             }
             catch { }
@@ -36,7 +36,7 @@ public partial class App : System.Windows.Application
         try
         {
             WatchdogService.StopWatchdog();
-            ProxyManager.DisableProxy();
+            ProxyManager.RestoreIfModified();
             DnsManager.RestoreDns();
         }
         catch { }

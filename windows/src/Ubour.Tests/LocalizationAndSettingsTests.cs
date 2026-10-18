@@ -32,6 +32,8 @@ public class LocalizationAndSettingsTests
     [Fact]
     public void AppSettings_SaveAndLoad_RoundtripsCorrectly()
     {
+        string testDirectory = Path.Combine(Path.GetTempPath(), "UbourTests", Guid.NewGuid().ToString("N"));
+        string settingsPath = Path.Combine(testDirectory, "settings.json");
         var settings = new AppSettings
         {
             Language = "en",
@@ -42,9 +44,9 @@ public class LocalizationAndSettingsTests
             CustomVlessUrl = "vless://test@1.2.3.4:443"
         };
 
-        settings.Save();
+        settings.Save(settingsPath);
 
-        var loaded = AppSettings.Load();
+        var loaded = AppSettings.Load(settingsPath);
         Assert.Equal("en", loaded.Language);
         Assert.Equal("light", loaded.Theme);
         Assert.Equal("9.9.9.9", loaded.SelectedDns);
@@ -52,12 +54,6 @@ public class LocalizationAndSettingsTests
         Assert.Equal("-5", loaded.DpiMode);
         Assert.Equal("vless://test@1.2.3.4:443", loaded.CustomVlessUrl);
 
-        // Reset to default
-        loaded.Language = "ar";
-        loaded.Theme = "dark";
-        loaded.SelectedDns = "8.8.8.8";
-        loaded.SelectedMode = AppOperationMode.VPN_ONLY;
-        loaded.DpiMode = "Stable";
-        loaded.Save();
+        try { Directory.Delete(testDirectory, recursive: true); } catch { }
     }
 }

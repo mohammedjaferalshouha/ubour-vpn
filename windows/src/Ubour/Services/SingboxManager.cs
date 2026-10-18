@@ -14,18 +14,20 @@ public class SingboxManager
 {
     private Process? _process;
     private string? _currentConfigFile;
+    private volatile bool _tunStarted;
+    private volatile string? _warpStartupError;
     public bool IsRunning => _process != null && !_process.HasExited;
+    public Process? OwnedProcess => _process;
+    public bool HasTunStarted => _tunStarted;
+    public string? WarpStartupError => _warpStartupError;
 
     public bool StartWarp(string baseDir, WarpConfig warp, bool enableAdBlock = true)
     {
         Stop();
+        _tunStarted = false;
+        _warpStartupError = null;
         string configPath = GenerateWarpConfig(warp, enableAdBlock, baseDir);
-        bool started = StartProcess(baseDir, configPath);
-        if (started)
-        {
-            ProxyManager.EnableProxy("127.0.0.1:2080");
-        }
-        return started;
+        return StartProcess(baseDir, configPath);
     }
 
     public bool StartAdBlockOnly(string baseDir)
@@ -69,6 +71,23 @@ public class SingboxManager
         }
     }
 
+    public bool VerifyTunRunning(int timeoutMs = 5000)
+    {
+        var timer = Stopwatch.StartNew();
+        while (timer.ElapsedMilliseconds < timeoutMs)
+        {
+            if (_process == null || _process.HasExited || !string.IsNullOrEmpty(_warpStartupError)) return false;
+            if (_tunStarted)
+            {
+                // Allow asynchronous sing-box startup diagnostics (including WireGuard bind errors) to arrive.
+                Thread.Sleep(500);
+                return _process != null && !_process.HasExited && string.IsNullOrEmpty(_warpStartupError);
+            }
+            Thread.Sleep(100);
+        }
+        return false;
+    }
+
     public static bool IsIpv6Supported()
     {
         try
@@ -78,9 +97,22 @@ public class SingboxManager
                 return false;
             }
 
-            using var socket = new Socket(AddressFamily.InterNetworkV6, SocketType.Dgram, ProtocolType.Udp);
-            socket.Bind(new IPEndPoint(IPAddress.IPv6Any, 0));
-            return true;
+            var nics = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces();
+            foreach (var nic in nics)
+            {
+                if (nic.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up &&
+                    nic.NetworkInterfaceType != System.Net.NetworkInformation.NetworkInterfaceType.Loopback &&
+                    nic.Supports(System.Net.NetworkInformation.NetworkInterfaceComponent.IPv6))
+                {
+                    var props = nic.GetIPProperties();
+                    if (props != null && props.UnicastAddresses != null)
+                    {
+                        var hasV6Addr = props.UnicastAddresses.Any(a => a.Address.AddressFamily == AddressFamily.InterNetworkV6 && !a.Address.IsIPv6LinkLocal && !a.Address.IsIPv6SiteLocal);
+                        if (hasV6Addr) return true;
+                    }
+                }
+            }
+            return false;
         }
         catch
         {
@@ -152,6 +184,7 @@ public class SingboxManager
                 {
                     type = "wireguard",
                     tag = "warp-ep",
+                    detour = "direct-warp",
                     system = false,
                     name = "warp",
                     address = addresses,
@@ -173,6 +206,12 @@ public class SingboxManager
             inbounds = inboundsList.ToArray(),
             outbounds = new object[]
             {
+                new
+                {
+                    type = "direct",
+                    tag = "direct-warp",
+                    udp_fragment = true
+                },
                 new
                 {
                     type = "direct",
@@ -246,7 +285,20 @@ public class SingboxManager
 
             string uuid = raw.Substring(0, atIdx);
             string host = raw.Substring(atIdx + 1, colonIdx - atIdx - 1);
-            string portStr = qIdx != -1 ? raw.Substring(colonIdx + 1, qIdx - colonIdx - 1) : raw.Substring(colonIdx + 1);
+            int hashIdx = raw.IndexOf('#');
+            string portStr;
+            if (qIdx != -1)
+            {
+                portStr = raw.Substring(colonIdx + 1, qIdx - colonIdx - 1);
+            }
+            else if (hashIdx != -1 && hashIdx > colonIdx)
+            {
+                portStr = raw.Substring(colonIdx + 1, hashIdx - colonIdx - 1);
+            }
+            else
+            {
+                portStr = raw.Substring(colonIdx + 1);
+            }
             int port = int.TryParse(portStr, out int p) ? p : 443;
 
             string sni = host;
@@ -256,6 +308,11 @@ public class SingboxManager
             if (qIdx != -1)
             {
                 string query = raw.Substring(qIdx + 1);
+                int qHashIdx = query.IndexOf('#');
+                if (qHashIdx != -1)
+                {
+                    query = query.Substring(0, qHashIdx);
+                }
                 string[] parts = query.Split('&');
                 foreach (var part in parts)
                 {
@@ -520,8 +577,8 @@ public class SingboxManager
             startInfo.EnvironmentVariables["ENABLE_DEPRECATED_MISSING_DOMAIN_RESOLVER"] = "true";
 
             _process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
-            _process.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppLogger.Info($"[sing-box] {e.Data}"); };
-            _process.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppLogger.Warn($"[sing-box] {e.Data}"); };
+            _process.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) HandleProcessLog(e.Data, isError: false); };
+            _process.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) HandleProcessLog(e.Data, isError: true); };
             _process.Start();
             _process.BeginOutputReadLine();
             _process.BeginErrorReadLine();
@@ -535,6 +592,25 @@ public class SingboxManager
         {
             return false;
         }
+    }
+
+    private void HandleProcessLog(string line, bool isError)
+    {
+        if (line.Contains("inbound/tun[tun-in]: started at Ubour-tun", StringComparison.OrdinalIgnoreCase))
+            _tunStarted = true;
+
+        if (line.Contains("endpoint/wireguard[warp-ep]", StringComparison.OrdinalIgnoreCase) &&
+            (line.Contains("unable to update bind", StringComparison.OrdinalIgnoreCase) ||
+             line.Contains("failed", StringComparison.OrdinalIgnoreCase) ||
+             line.Contains("fatal", StringComparison.OrdinalIgnoreCase)))
+            _warpStartupError ??= line;
+
+        if (line.Contains("inbound/tun[tun-in]", StringComparison.OrdinalIgnoreCase) &&
+            (line.Contains("error", StringComparison.OrdinalIgnoreCase) || line.Contains("failed", StringComparison.OrdinalIgnoreCase)))
+            _warpStartupError ??= line;
+
+        if (isError) AppLogger.Warn($"[sing-box] {line}");
+        else AppLogger.Info($"[sing-box] {line}");
     }
 
     public void Stop()
@@ -552,11 +628,6 @@ public class SingboxManager
                 }
                 _process.Dispose();
                 _process = null;
-            }
-
-            foreach (var proc in Process.GetProcessesByName("sing-box"))
-            {
-                try { proc.Kill(); } catch { }
             }
 
             if (!string.IsNullOrEmpty(_currentConfigFile) && File.Exists(_currentConfigFile))
