@@ -21,13 +21,14 @@ public class AppSettings
         "settings.json"
     );
 
-    public static AppSettings Load()
+    public static AppSettings Load(string? settingsFilePath = null)
     {
         try
         {
-            if (File.Exists(SettingsFilePath))
+            string path = settingsFilePath ?? SettingsFilePath;
+            if (File.Exists(path))
             {
-                string json = File.ReadAllText(SettingsFilePath);
+                string json = File.ReadAllText(path);
                 var settings = JsonSerializer.Deserialize<AppSettings>(json);
                 if (settings != null) return settings;
             }
@@ -36,14 +37,15 @@ public class AppSettings
         return new AppSettings();
     }
 
-    public void Save()
+    public void Save(string? settingsFilePath = null)
     {
         try
         {
-            string dir = Path.GetDirectoryName(SettingsFilePath)!;
+            string path = settingsFilePath ?? SettingsFilePath;
+            string dir = Path.GetDirectoryName(path)!;
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             string json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(SettingsFilePath, json);
+            File.WriteAllText(path, json);
         }
         catch { }
     }

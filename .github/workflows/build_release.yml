@@ -59,6 +59,32 @@ jobs:
             echo "BUILD_VERSION_CODE=$VCODE" >> $GITHUB_ENV
           fi
 
+      - name: Configure Android Release Signing
+        shell: pwsh
+        env:
+          ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          ANDROID_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
+          ANDROID_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          ANDROID_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: |
+          $required = @('ANDROID_RELEASE_KEYSTORE_BASE64', 'ANDROID_RELEASE_KEYSTORE_PASSWORD', 'ANDROID_RELEASE_KEY_ALIAS', 'ANDROID_RELEASE_KEY_PASSWORD')
+          foreach ($name in $required) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+              throw "Required Android signing secret '$name' is not configured."
+            }
+          }
+          $keystoreDirectory = Join-Path $env:GITHUB_WORKSPACE 'apk+ublock/keystore'
+          New-Item -ItemType Directory -Force -Path $keystoreDirectory | Out-Null
+          $keystorePath = Join-Path $keystoreDirectory 'ubour-release-key.jks'
+          [IO.File]::WriteAllBytes($keystorePath, [Convert]::FromBase64String($env:ANDROID_RELEASE_KEYSTORE_BASE64))
+          $properties = @"
+          storeFile=../keystore/ubour-release-key.jks
+          storePassword=$env:ANDROID_RELEASE_KEYSTORE_PASSWORD
+          keyAlias=$env:ANDROID_RELEASE_KEY_ALIAS
+          keyPassword=$env:ANDROID_RELEASE_KEY_PASSWORD
+          "@
+          [IO.File]::WriteAllText((Join-Path $env:GITHUB_WORKSPACE 'apk+ublock/keystore.properties'), $properties, [Text.UTF8Encoding]::new($false))
+
       - name: Build Release APK
         run: |
           cd "apk+ublock"

@@ -9,6 +9,7 @@ public class GoodbyeDpiManager
 {
     private Process? _process;
     public bool IsRunning => _process != null && !_process.HasExited;
+    public Process? OwnedProcess => _process;
 
     private static readonly Dictionary<string, string> DnsV6Map = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -26,8 +27,6 @@ public class GoodbyeDpiManager
         Stop();
         try
         {
-            CleanupWinDivertService();
-
             string arch = Environment.Is64BitOperatingSystem ? "x86_64" : "x86";
             string exePath = Path.Combine(baseDir, "engine", arch, "goodbyedpi.exe");
 
@@ -40,19 +39,7 @@ public class GoodbyeDpiManager
 
             string workDir = Path.GetDirectoryName(exePath)!;
 
-            string dpiFlag = "-1";
-            if (mode == "-9" || mode.Equals("Aggressive", StringComparison.OrdinalIgnoreCase))
-            {
-                dpiFlag = "-9";
-            }
-            else if (mode == "-5" || mode.Equals("Medium", StringComparison.OrdinalIgnoreCase) || mode.Equals("Compatible", StringComparison.OrdinalIgnoreCase))
-            {
-                dpiFlag = "-5";
-            }
-            else
-            {
-                dpiFlag = "-1";
-            }
+            string dpiFlag = ResolveDpiFlag(mode);
 
             string args = dpiFlag;
 
@@ -73,8 +60,7 @@ public class GoodbyeDpiManager
                 _process.EnableRaisingEvents = true;
                 _process.Exited += (s, e) =>
                 {
-                    AppLogger.Warn("[GoodbyeDPI] Process exited or crashed unexpectedly. Cleaning up WinDivert driver...");
-                    CleanupWinDivertService();
+                    AppLogger.Warn("[GoodbyeDPI] Process exited or crashed unexpectedly.");
                 };
             }
             AppLogger.Info($"[GoodbyeDPI] Started with arguments: {args}");
@@ -85,6 +71,13 @@ public class GoodbyeDpiManager
             AppLogger.Error($"[GoodbyeDPI] Failed to start: {ex.Message}");
             return false;
         }
+    }
+
+    private static string ResolveDpiFlag(string mode)
+    {
+        if (mode == "-9" || mode.Equals("Aggressive", StringComparison.OrdinalIgnoreCase)) return "-9";
+        if (mode == "-5" || mode.Equals("Medium", StringComparison.OrdinalIgnoreCase) || mode.Equals("Compatible", StringComparison.OrdinalIgnoreCase)) return "-5";
+        return "-1";
     }
 
     public void Stop()
@@ -104,26 +97,6 @@ public class GoodbyeDpiManager
                 AppLogger.Info("[GoodbyeDPI] Stopped cleanly.");
             }
 
-            foreach (var proc in Process.GetProcessesByName("goodbyedpi"))
-            {
-                try { proc.Kill(); } catch { }
-            }
-
-            CleanupWinDivertService();
-        }
-        catch { }
-    }
-
-    private static void CleanupWinDivertService()
-    {
-        try
-        {
-            var psi = new ProcessStartInfo("sc", "stop WinDivert")
-            {
-                CreateNoWindow = true,
-                UseShellExecute = false
-            };
-            Process.Start(psi)?.WaitForExit(300);
         }
         catch { }
     }

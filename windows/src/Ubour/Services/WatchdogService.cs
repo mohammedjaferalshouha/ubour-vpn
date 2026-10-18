@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace Ubour.Services;
@@ -7,32 +8,50 @@ public static class WatchdogService
 {
     private static Process? _watchdogProcess;
 
-    public static void StartWatchdog()
+    public static void StartWatchdog(params Process?[] managedProcesses)
     {
         StopWatchdog();
 
         try
         {
-            int currentPid = Environment.ProcessId;
+            var identities = new List<string>();
+            foreach (var process in managedProcesses)
+            {
+                try
+                {
+                    if (process == null || process.HasExited) continue;
+                    string? path = process.MainModule?.FileName;
+                    if (string.IsNullOrWhiteSpace(path)) continue;
+                    string escapedPath = path.Replace("'", "''", StringComparison.Ordinal);
+                    long startedAt = process.StartTime.ToUniversalTime().Ticks;
+                    identities.Add($"@{{ Id={process.Id}; StartTicks={startedAt}; Path='{escapedPath}' }}");
+                }
+                catch { }
+            }
 
-            // PowerShell one-liner that waits for main PID to exit, then resets engines, WinDivert, proxy and DNS
-            string psScript = $"$ErrorActionPreference = 'SilentlyContinue'; Wait-Process -Id {currentPid}; Stop-Process -Name goodbyedpi -Force -ErrorAction SilentlyContinue; Stop-Process -Name sing-box -Force -ErrorAction SilentlyContinue; & sc.exe stop WinDivert | Out-Null; Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings' -Name ProxyEnable -Value 0; Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings' -Name ProxyServer -Value ''; Remove-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings' -Name ProxyServer -ErrorAction SilentlyContinue; $sig = '[DllImport(\\\"wininet.dll\\\")] public static extern bool InternetSetOption(IntPtr hInternet, int dwOption, IntPtr lpBuffer, int dwBufferLength);'; $type = Add-Type -MemberDefinition $sig -Name WinINetWatchdog -Namespace WinINet -PassThru; $type::InternetSetOption([IntPtr]::Zero, 39, [IntPtr]::Zero, 0); $type::InternetSetOption([IntPtr]::Zero, 37, [IntPtr]::Zero, 0); Get-NetAdapter | Where-Object Status -eq 'Up' | Set-DnsClientServerAddress -ResetServerAddresses";
+            if (identities.Count == 0) return;
+            int parentPid = Environment.ProcessId;
+            string entries = string.Join(",", identities);
+            string script = "$ErrorActionPreference='SilentlyContinue'; " +
+                $"Wait-Process -Id {parentPid}; " +
+                $"foreach ($identity in @({entries})) {{ " +
+                "$owned=Get-Process -Id $identity.Id; " +
+                "if ($owned -and $owned.Path -ieq $identity.Path -and [math]::Abs($owned.StartTime.ToUniversalTime().Ticks - $identity.StartTicks) -lt 10000000) { " +
+                "Stop-Process -Id $identity.Id -Force -ErrorAction SilentlyContinue } }";
 
-            var startInfo = new ProcessStartInfo
+            _watchdogProcess = Process.Start(new ProcessStartInfo
             {
                 FileName = "powershell.exe",
-                Arguments = $"-NoProfile -NonInteractive -WindowStyle Hidden -Command \"{psScript}\"",
+                Arguments = $"-NoProfile -NonInteractive -WindowStyle Hidden -Command \"{script}\"",
                 CreateNoWindow = true,
                 UseShellExecute = false,
                 WindowStyle = ProcessWindowStyle.Hidden
-            };
-
-            _watchdogProcess = Process.Start(startInfo);
-            AppLogger.Info($"[Watchdog] Safety guard started for PID {currentPid}");
+            });
+            if (_watchdogProcess != null) AppLogger.Info($"[Watchdog] Recovery guard started for {identities.Count} app-owned process(es).");
         }
         catch (Exception ex)
         {
-            AppLogger.Warn($"[Watchdog] Failed to launch safety guard: {ex.Message}");
+            AppLogger.Warn($"[Watchdog] Failed to start recovery guard: {ex.Message}");
         }
     }
 
@@ -41,13 +60,13 @@ public static class WatchdogService
         try
         {
             if (_watchdogProcess != null && !_watchdogProcess.HasExited)
-            {
                 _watchdogProcess.Kill(true);
-                _watchdogProcess.Dispose();
-                _watchdogProcess = null;
-                AppLogger.Info("[Watchdog] Safety guard stopped cleanly.");
-            }
         }
         catch { }
+        finally
+        {
+            _watchdogProcess?.Dispose();
+            _watchdogProcess = null;
+        }
     }
 }

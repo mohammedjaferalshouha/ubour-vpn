@@ -402,9 +402,12 @@ public partial class MainWindow : Window
 
                         var warpConfig = await WarpManager.GetOrRegisterConfigAsync();
                         bool sbOk = _singbox.StartWarp(_baseDir, warpConfig, enableAdBlock: withAdBlock);
-                        if (!sbOk || !_singbox.VerifyRunning(2080, 2500))
+                        bool warpReady = sbOk && _singbox.VerifyRunning(2080, 2500) && _singbox.VerifyTunRunning(5000);
+                        if (!warpReady)
                         {
-                            failureReason = "فشل بدء نفق كلاود فلير ومحرك التوجيه sing-box";
+                            failureReason = string.IsNullOrWhiteSpace(_singbox.WarpStartupError)
+                                ? "لم يبدأ نفق WARP (TUN) بنجاح. تحقق من صلاحيات التطبيق وتعريف Wintun وسجل sing-box."
+                                : $"فشل بدء نفق WARP: {_singbox.WarpStartupError}";
                             _singbox.Stop();
                             if (withAdBlock) _adBlock.Stop();
                             return false;
@@ -412,11 +415,21 @@ public partial class MainWindow : Window
 
                         if (withAdBlock)
                         {
-                            DnsManager.SetLocalDns();
+                            if (!DnsManager.SetLocalDns())
+                            {
+                                failureReason = "تعذر تطبيق DNS المحلي على جميع واجهات الشبكة";
+                                _singbox.Stop();
+                                _adBlock.Stop();
+                                DnsManager.RestoreDns();
+                                return false;
+                            }
                         }
-                        else
+                        else if (!DnsManager.SetCustomDns("1.1.1.1"))
                         {
-                            DnsManager.SetCustomDns("1.1.1.1");
+                            failureReason = "تعذر تطبيق DNS المختار على جميع واجهات الشبكة";
+                            _singbox.Stop();
+                            DnsManager.RestoreDns();
+                            return false;
                         }
 
                         return true;
@@ -442,7 +455,14 @@ public partial class MainWindow : Window
                             return false;
                         }
 
-                        DnsManager.SetLocalDns();
+                        if (!DnsManager.SetLocalDns())
+                        {
+                            failureReason = "تعذر تطبيق DNS المحلي على جميع واجهات الشبكة";
+                            _adBlock.Stop();
+                            _goodbyeDpi.Stop();
+                            DnsManager.RestoreDns();
+                            return false;
+                        }
                         return true;
                     });
                     break;
@@ -457,7 +477,13 @@ public partial class MainWindow : Window
                             return false;
                         }
 
-                        DnsManager.SetCustomDns(dnsServer);
+                        if (!DnsManager.SetCustomDns(dnsServer))
+                        {
+                            failureReason = "تعذر تطبيق DNS المختار على جميع واجهات الشبكة";
+                            _goodbyeDpi.Stop();
+                            DnsManager.RestoreDns();
+                            return false;
+                        }
                         return true;
                     });
                     break;
@@ -488,7 +514,14 @@ public partial class MainWindow : Window
                             return false;
                         }
 
-                        DnsManager.SetLocalDns();
+                        if (!DnsManager.SetLocalDns())
+                        {
+                            failureReason = "تعذر تطبيق DNS المحلي على جميع واجهات الشبكة";
+                            _singbox.Stop();
+                            _adBlock.Stop();
+                            DnsManager.RestoreDns();
+                            return false;
+                        }
                         return true;
                     });
                     break;
@@ -505,7 +538,7 @@ public partial class MainWindow : Window
             _connectedTime = DateTime.UtcNow;
             _currentState = VpnState.CONNECTED;
             _statsTimer?.Start();
-            WatchdogService.StartWatchdog();
+            WatchdogService.StartWatchdog(_singbox?.OwnedProcess, _goodbyeDpi?.OwnedProcess);
         }
         else
         {
@@ -527,7 +560,6 @@ public partial class MainWindow : Window
 
         _statsTimer?.Stop();
         WatchdogService.StopWatchdog();
-
         await Task.Run(() =>
         {
             try { _goodbyeDpi.Stop(); } catch { }

@@ -45,6 +45,8 @@ desktop.ini
 # Build artifacts & outputs
 publish/
 release_out/
+apk+ublock/keystore.properties
+apk+ublock/keystore/
 
 # Analysis & temporary
 graphify-out/cache/
