@@ -206,11 +206,11 @@ jobs:
           mkdir -p publish/Ubour-windows-x64
           mkdir -p publish/Ubour-windows-x86
           if ($env:BUILD_VERSION_WIN) {
-            dotnet publish windows/src/Ubour/Ubour.csproj -c Release -r win-x64 --self-contained false -o publish/Ubour-windows-x64 /p:Version="$env:BUILD_VERSION_WIN" /p:AssemblyVersion="$env:BUILD_VERSION_WIN.0" /p:FileVersion="$env:BUILD_VERSION_WIN.0" /p:InformationalVersion="$env:BUILD_VERSION_WIN"
-            dotnet publish windows/src/Ubour/Ubour.csproj -c Release -r win-x86 --self-contained false -o publish/Ubour-windows-x86 /p:Version="$env:BUILD_VERSION_WIN" /p:AssemblyVersion="$env:BUILD_VERSION_WIN.0" /p:FileVersion="$env:BUILD_VERSION_WIN.0" /p:InformationalVersion="$env:BUILD_VERSION_WIN"
+            dotnet publish windows/src/Ubour/Ubour.csproj -c Release -r win-x64 --self-contained true -o publish/Ubour-windows-x64 /p:Version="$env:BUILD_VERSION_WIN" /p:AssemblyVersion="$env:BUILD_VERSION_WIN.0" /p:FileVersion="$env:BUILD_VERSION_WIN.0" /p:InformationalVersion="$env:BUILD_VERSION_WIN"
+            dotnet publish windows/src/Ubour/Ubour.csproj -c Release -r win-x86 --self-contained true -o publish/Ubour-windows-x86 /p:Version="$env:BUILD_VERSION_WIN" /p:AssemblyVersion="$env:BUILD_VERSION_WIN.0" /p:FileVersion="$env:BUILD_VERSION_WIN.0" /p:InformationalVersion="$env:BUILD_VERSION_WIN"
           } else {
-            dotnet publish windows/src/Ubour/Ubour.csproj -c Release -r win-x64 --self-contained false -o publish/Ubour-windows-x64
-            dotnet publish windows/src/Ubour/Ubour.csproj -c Release -r win-x86 --self-contained false -o publish/Ubour-windows-x86
+            dotnet publish windows/src/Ubour/Ubour.csproj -c Release -r win-x64 --self-contained true -o publish/Ubour-windows-x64
+            dotnet publish windows/src/Ubour/Ubour.csproj -c Release -r win-x86 --self-contained true -o publish/Ubour-windows-x86
           }
 
           # Package x64 Assets
