@@ -5,12 +5,14 @@
 # برنامج عبور (Ubour)
 ### المنظومة المتطورة لتجاوز الحجب وحظر الإعلانات لويندوز وأندرويد
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
-[![CI/CD Build & Test](https://github.com/mohammedjaferalshouha/ubour-vpn/actions/workflows/build_release.yml/badge.svg)](https://github.com/mohammedjaferalshouha/ubour-vpn/actions/workflows/build_release.yml)
-[![Security Scan](https://github.com/mohammedjaferalshouha/ubour-vpn/actions/workflows/security_scan.yml/badge.svg)](https://github.com/mohammedjaferalshouha/ubour-vpn/actions/workflows/security_scan.yml)
-[![Platform: Android](https://img.shields.io/badge/Platform-Android%207.0%2B-blue.svg)](#-تطبيق-الأندرويد)
-[![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-0078D6.svg)](#-تطبيق-الكمبيوتر-لويندوز)
-[![Privacy: Zero-Logging](https://img.shields.io/badge/الخصوصية-محلية%20100%25%20بدون%20سجلات-success.svg)](#-الخصوصية-والأمان)
+[![أحدث إصدار](https://img.shields.io/github/v/release/mohammedjaferalshouha/ubour-vpn?color=10B981&label=%D8%A7%D9%84%D8%A5%D8%B5%D8%AF%D8%A7%D8%B1%20%D8%A7%D9%84%D8%B1%D8%B3%D9%85%D9%8A&logo=github)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest)
+[![الترخيص: MIT](https://img.shields.io/badge/الترخيص-MIT-emerald.svg)](LICENSE)
+[![البناء والفحص الآلي](https://github.com/mohammedjaferalshouha/ubour-vpn/actions/workflows/build_release.yml/badge.svg)](https://github.com/mohammedjaferalshouha/ubour-vpn/actions/workflows/build_release.yml)
+[![الفحص الأمني وحماية الأسرار](https://github.com/mohammedjaferalshouha/ubour-vpn/actions/workflows/security_scan.yml/badge.svg)](https://github.com/mohammedjaferalshouha/ubour-vpn/actions/workflows/security_scan.yml)
+[![فحص كود كيو إل المتقدم](https://github.com/mohammedjaferalshouha/ubour-vpn/actions/workflows/codeql.yml/badge.svg)](https://github.com/mohammedjaferalshouha/ubour-vpn/actions/workflows/codeql.yml)
+[![المنصة: أندرويد](https://img.shields.io/badge/المنصة-أندرويد%207.0%2B-blue.svg)](#android-app)
+[![المنصة: ويندوز](https://img.shields.io/badge/المنصة-ويندوز%2010%20%2F%2011-0078D6.svg)](#windows-app)
+[![الخصوصية: بدون سجلات](https://img.shields.io/badge/الخصوصية-محلية%20100%25%20بدون%20سجلات-success.svg)](#privacy-security)
 [![الخريطة المعرفية](https://img.shields.io/badge/المعمارية-الخريطة%20المعرفية%20التفاعلية-8A2BE2.svg)](https://mohammedjaferalshouha.github.io/ubour-vpn/)
 
 **[English (الإنجليزية)](README.md) | [العربية](README.ar.md)**
@@ -65,6 +67,7 @@
 
 ## 🌟 المميزات بالتفصيل
 
+<a id="android-app"></a>
 ### 📱 تطبيق الأندرويد (`apk+ublock`)
 * **محرك ByeDPI المدمج**: تجزئة حزم TCP، وتقسيم SNI، وحقن الحزم الوهمية لتجاوز أكثر أنظمة الحجب تعقيداً.
 * **درع منع الإعلانات الشامل**: أكثر من ١٨٠,٠٠٠ قاعدة منع نشطة مدمجة من uBlock Origin و AdGuard.
@@ -83,23 +86,31 @@
 * **توقيع رقمي رسمي (Release Signing)**: موقع بمفتاح تشفير رسمي دائم مع دعم شهادات V2 و V3 لقبول التحديثات التلقائية مستقبلاً بسلاسة.
 * **واجهة حديثة Material 3**: دعم كامل للوضع الداكن والفاتح واللغة العربية والإنجليزية.
 
+<a id="windows-app"></a>
 ### 💻 تطبيق الكمبيوتر لويندوز (`windows/src/Ubour`)
-* **تكامل كامل مع GoodbyeDPI و WinDivert**: فك الحجب على مستوى نواة ويندوز بزمن استجابة فائق.
-* **أوضاع DPI متعددة**: التبديل الفوري بين الأوضاع الافتراضية والتجزئة المتقدمة.
-* **واجهة عربية أنيقة وسهلة**: تطبيق WPF خفيف يعمل في شريط المهام (System Tray).
-* **فاحص التحديثات التلقائي**: التحقق من التحديثات بضغطة زر واحدة عبر GitHub.
-* **حزم مستقلة لمعماريتي 64 بت و 32 بت**: جاهزة للتشغيل المباشر دون الحاجة لتثبيت برامج إضافية.
+* **منظومة أوضاع التشغيل المتكاملة**:
+  1. *فك الحجب فقط (Bypass Only)*: تجاوز الحجب المباشر عبر محرك GoodbyeDPI وتكامل WinDivert بأقصى سرعة اتصال أصلية وبدون وسيط.
+  2. *فك الحجب + مانع الإعلانات (Bypass + AdBlock)*: يجمع بين تجاوز الحجب المباشر وتصفية الإعلانات ومسارات التتبع محلياً عبر DNS.
+  3. *مانع الإعلانات فقط (AdBlock Only)*: وضع خفيف جداً يكتفي بتصفية إعلانات النطاقات محلياً بدون أي تعديل على الحزم.
+  4. *نفق كلاود فلير (Cloudflare WARP)*: نفق مشفر بالكامل عبر بروتوكول WireGuard ومحول الشبكة عالي الأداء Wintun ومحرك Sing-box.
+* **⚡ فاحص ومحدد المنافذ التلقائي (Port Scanner)**: زر فحص منافذ فوري في الواجهة لاختيار المنفذ الأسرع والأقل زمناً للاستجابة تلقائياً (`2408`، `4500`، `1701`، وغيرها).
+* **إمكانية تخصيص الخوادم والمنافذ**: تخصيص عناوين النفق والمنافذ (`WarpEndpointHost` و `WarpEndpointPort`) مباشرة من إعدادات البرنامج.
+* **خيارات التشغيل الفرعية**: التبديل الفوري بين *مع مانع الإعلانات* أو *النفق فقط (أقصى سرعة)*.
+* **دعم التعديل المحلي للملفات**: إمكانية قراءة ملف التخصيص `singbox_warp.json` مباشرة من مجلد البرنامج لتسهيل التجارب والتطوير.
+* **حزم مستقلة محمولة (Portable)**: جاهزة للعمل مباشرة لمعماريتي 64 بت و 32 بت بدون الحاجة لتثبيت أي متطلبات مسبقة.
+* **فاحص التحديثات التلقائي**: التحقق من التحديثات بضغطة زر واحدة عبر واجهة برمجة GitHub الرسمية.
+* **اختبارات شاملة وموثقة**: ٨١ اختبار وحدوي آلي ناجح بنسبة 100% عبر مسارات العمل الآلية.
 
 ---
 
 ## 📦 جدول التحميل المباشر والحزم
 
-| المنصة | رابط التحميل المباشر | المعمارية | النوع |
-| :--- | :--- | :--- | :--- |
-| **تطبيق أندرويد** | [📥 **تحميل الحزمة APK**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-VPN-Release.apk) | `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` | حزمة التثبيت الرسمية الموقعة |
-| **ويندوز 64 بت** | [📥 **تحميل نسخة 64 بت**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x64.zip) | `x64` | حزمة جاهزة للتشغيل (Win 10/11) |
-| **ويندوز 32 بت** | [📥 **تحميل نسخة 32 بت**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x86.zip) | `x86` | حزمة جاهزة للتشغيل (Win 7/8/10/11) |
-| **الإصدارات السابقة** | [📚 **أرشيف كافة الإصدارات**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases) | جميع المنصات | الأرشيف الكامل للإصدارات السابقة |
+| المنصة | رابط التحميل المباشر | المعمارية | النوع | الحالة |
+| :--- | :--- | :--- | :--- | :--- |
+| **تطبيق أندرويد** | [📥 **تحميل الحزمة الرسمية APK**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-VPN-Release.apk) | `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` | حزمة التثبيت الرسمية الموقعة | موثق بنجاح ✓ |
+| **ويندوز 64 بت** | [📥 **تحميل حزمة 64 بت**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x64.zip) | `x64` (64-bit) | حزمة جاهزة للتشغيل (Win 10/11) | موثق بنجاح ✓ |
+| **ويندوز 32 بت** | [📥 **تحميل حزمة 32 بت**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x86.zip) | `x86` (32-bit) | حزمة جاهزة للتشغيل (Win 7/8/10/11) | موثق بنجاح ✓ |
+| **الإصدارات السابقة** | [📚 **أرشيف كافة الإصدارات**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases) | جميع المنصات | الأرشيف الكامل للإصدارات وسجل التغييرات | مكتمل |
 
 ---
 
@@ -122,21 +133,23 @@ cd ubour-vpn/apk+ublock
 ```bash
 cd ubour-vpn/windows/src
 
-# تشغيل اختبارات الوحدات
+# تشغيل كافة الاختبارات الوحدوية البالغ عددها 81 اختباراً
 dotnet test Ubour.Tests/Ubour.Tests.csproj -c Release
 
-# بناء ونشر الحزم لويندوز
-dotnet publish Ubour/Ubour.csproj -c Release -r win-x64 --self-contained false
-dotnet publish Ubour/Ubour.csproj -c Release -r win-x86 --self-contained false
+# بناء ونشر الحزم المستقلة المحمولة لويندوز
+dotnet publish Ubour/Ubour.csproj -c Release -r win-x64 --self-contained true
+dotnet publish Ubour/Ubour.csproj -c Release -r win-x86 --self-contained true
 ```
 
 ---
 
+<a id="privacy-security"></a>
 ## 🔒 الخصوصية والأمان
 
 - **بدون أي سجلات (Zero-Logging)**: لا يقوم البرنامج بجمع أو تسجيل أو نقل أي بيانات تصفح أو عناوين IP أو استعلامات DNS.
 - **معالجة محلية بالكامل**: تتم جميع عمليات تعديل الحزم وتصفية الإعلانات على جهازك فقط.
 - **فحص أمني آلي مستمر**: فحص تسريب المفاتيح عبر Gitleaks وإدارة الثغرات عبر Dependabot.
+- **فحص أمني متقدم لكود المصدر**: فحص ثابت دوري عبر CodeQL لكافة اللغات (C#, Java, Kotlin, Actions).
 - **سياسة الإبلاغ الأمني**: موثقة بالكامل في ملف [`SECURITY.md`](SECURITY.md).
 
 ---
@@ -146,13 +159,14 @@ dotnet publish Ubour/Ubour.csproj -c Release -r win-x86 --self-contained false
 تم بناء عبور بالاعتماد على مشاريع مفتوحة المصدر رائدة:
 - **[GoodbyeDPI](https://github.com/ValdikSS/GoodbyeDPI)** للمطور ValdikSS — أداة تجاوز الـ DPI للويندوز.
 - **[WinDivert](https://github.com/basil00/Divert)** للمطور basil00 — مكتبة التقاط وتحويل الحزم لويندوز.
+- **[Wintun](https://www.wintun.net/)** من WireGuard LLC — تعريف محول الشبكة الافتراضي فائق الأداء لويندوز.
 - **[ByeDPI](https://github.com/hiddify/ByeDPI)** و **[ByeDPIAndroid](https://github.com/dovecoteescapee/ByeDPIAndroid)** للمطورين dovecoteescapee و hufrea — محرك ByeDPI للأندرويد.
 - **[Sing-box](https://github.com/SagerNet/sing-box)** — المنظومة الشاملة لدعم WARP و VLESS.
-- **[uBlock Origin](https://github.com/gorhill/uBlock)** للمطور Raymond Hill (gorhill) — قواعد منع الإعلانات ومسارات التتبع.
-- **[AdGuard Filters](https://github.com/AdguardTeam/AdguardFilters)** — القوائم المحدثة لحظر الإعلانات والحماية من البرمجيات الضارة.
+- **[uBlock Origin](https://github.com/gorhill/uBlock)** للمطور Raymond Hill (gorhill) — قواعد حظر الإعلانات المفتوحة المصدر.
+- **[AdGuard Filters](https://github.com/AdguardTeam/AdguardFilters)** — قوائم حماية الإعلانات والتتبع الشاملة.
 
 ---
 
-## 📄 رخصة الاستخدام
+## 📄 الترخيص (License)
 
-هذا المشروع مرخص بموجب **رخصة MIT**. راجع ملف [`LICENSE`](LICENSE) للمزيد من التفاصيل.
+مرخص تحت رخصة **MIT License**. للاطلاع على كامل البنود، راجع ملف [`LICENSE`](LICENSE).

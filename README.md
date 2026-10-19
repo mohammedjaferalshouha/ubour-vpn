@@ -5,12 +5,14 @@
 # Ubour (عبور)
 ### Next-Generation Anti-Censorship & Local AdBlock Suite for Windows & Android
 
+[![Latest Release](https://img.shields.io/github/v/release/mohammedjaferalshouha/ubour-vpn?color=10B981&label=Release&logo=github)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
 [![CI/CD Build & Test](https://github.com/mohammedjaferalshouha/ubour-vpn/actions/workflows/build_release.yml/badge.svg)](https://github.com/mohammedjaferalshouha/ubour-vpn/actions/workflows/build_release.yml)
 [![Security Scan](https://github.com/mohammedjaferalshouha/ubour-vpn/actions/workflows/security_scan.yml/badge.svg)](https://github.com/mohammedjaferalshouha/ubour-vpn/actions/workflows/security_scan.yml)
-[![Platform: Android](https://img.shields.io/badge/Platform-Android%207.0%2B-blue.svg)](#-android-application)
-[![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-0078D6.svg)](#-windows-pc-application)
-[![Privacy: Zero-Logging](https://img.shields.io/badge/Privacy-100%25%20Local%20%2F%20Zero--Logging-success.svg)](#-privacy--security)
+[![CodeQL Analysis](https://github.com/mohammedjaferalshouha/ubour-vpn/actions/workflows/codeql.yml/badge.svg)](https://github.com/mohammedjaferalshouha/ubour-vpn/actions/workflows/codeql.yml)
+[![Platform: Android](https://img.shields.io/badge/Platform-Android%207.0%2B-blue.svg)](#android-app)
+[![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-0078D6.svg)](#windows-app)
+[![Privacy: Zero-Logging](https://img.shields.io/badge/Privacy-100%25%20Local%20%2F%20Zero--Logging-success.svg)](#privacy-security)
 [![Knowledge Graph](https://img.shields.io/badge/Architecture-Knowledge%20Graph-8A2BE2.svg)](https://mohammedjaferalshouha.github.io/ubour-vpn/)
 
 **[English](README.md) | [العربية (Arabic)](README.ar.md)**
@@ -65,6 +67,7 @@ Unlike conventional VPN services that route all your internet traffic through ex
 
 ## 🌟 Key Features
 
+<a id="android-app"></a>
 ### 📱 Android Application (`apk+ublock`)
 * **Integrated Native ByeDPI Engine**: Real-time TCP segmentation, SNI fragmentation, and fake packet injection.
 * **Local Ad & Tracker Shield**: Over 180,000+ active blocking rules compiled from uBlock Origin and AdGuard.
@@ -73,7 +76,7 @@ Unlike conventional VPN services that route all your internet traffic through ex
   * Dedicated tabs: **All Apps** and **Excluded Only** with instantaneous real-time search.
 * **Battery Optimization Intelligence**: Automated detection and status indicator for background process stability.
 * **Independent DNS Engine**: Fully decoupled DNS resolution defaulting to standard Google DNS (8.8.8.8 / 8.8.4.4), Quad9 (9.9.9.9 / 149.112.112.112), and AdGuard DNS.
-* **4 Operation Modes**:
+* **4 Flexible Operation Modes**:
   1. *Direct DPI Bypass (100% Speed)*: Pure direct connection without proxy overhead.
   2. *Direct Bypass + AdBlock*: Full DPI evasion + local ad & tracker filtering.
   3. *AdBlock Only*: Ultra-light battery saver mode for pure local ad blocking.
@@ -83,23 +86,31 @@ Unlike conventional VPN services that route all your internet traffic through ex
 * **Cryptographically Signed**: Official production keystore with Android V2/V3 signature schemes for seamless OTA updates.
 * **Modern Material 3 Interface**: Elegant Dark/Light mode with comprehensive Arabic (RTL) & English localization.
 
+<a id="windows-app"></a>
 ### 💻 Windows PC Application (`windows/src/Ubour`)
-* **GoodbyeDPI & WinDivert Integration**: Kernel-level packet filter bypassing ISP DPI with zero latency.
-* **Multi-Preset DPI Selector**: Quick switching between Standard Mode, Fast Fragmentation, and Fake SNI.
-* **Lightweight WPF Interface**: Clean Arabized GUI with system tray minimization and auto-reconnect.
-* **Built-in Auto Updater**: Seamless one-click verification against GitHub releases.
-* **x64 & x86 Dual Architecture**: Native standalone publish packages.
+* **Multi-Mode Operation Suite**:
+  1. *Bypass Only (GoodbyeDPI)*: Direct kernel-level DPI evasion via WinDivert with zero latency and native speeds.
+  2. *Bypass + AdBlock*: Full DPI bypass combined with local DNS ad and telemetry filtering.
+  3. *AdBlock Only*: Ultra-low footprint local DNS ad blocking without packet manipulation.
+  4. *Cloudflare WARP*: Full WireGuard tunnel via high-performance Wintun virtual network adapter and Sing-box core.
+* **⚡ One-Click WARP Port Scanner**: Built-in port latency tester to scan and pick the most responsive Cloudflare WARP port (`2408`, `4500`, `1701`, etc.) automatically.
+* **Custom Endpoint & Port Selector**: Configure custom Cloudflare clean IPs and ports (`WarpEndpointHost`, `WarpEndpointPort`) directly from the GUI.
+* **Sub-Mode Toggles**: Choose between *With AdBlock* (dual protection) or *Tunnel Only* (maximum throughput).
+* **Local Custom Configuration**: Supports loading custom `singbox_warp.json` configurations directly from the application folder.
+* **Dual Architecture Standalone**: Native x64 and x86 standalone binaries without requiring external runtimes.
+* **Built-in Auto Updater**: Automatic verification against the latest GitHub releases.
+* **Rigorous Verification**: 81 comprehensive unit tests passing with 100% success across automated CI/CD.
 
 ---
 
 ## 📦 Direct Downloads & Packages Table
 
-| Platform | Direct Download Link | Architecture | Type |
-| :--- | :--- | :--- | :--- |
-| **Android APK** | [📥 **Download APK**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-VPN-Release.apk) | `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` | Universal Signed Release APK |
-| **Windows x64** | [📥 **Download Win x64**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x64.zip) | `x64` (64-bit) | Standalone Executable (Win 10/11) |
-| **Windows x86** | [📥 **Download Win x86**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x86.zip) | `x86` (32-bit) | Standalone Executable (Win 7/8/10/11) |
-| **Previous Releases** | [📚 **View All Releases**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases) | All Platforms | Full Release Archive & History |
+| Platform | Direct Download Link | Architecture | Type | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **Android APK** | [📥 **Download Universal APK**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-VPN-Release.apk) | `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` | Universal Signed Release APK | Verified ✓ |
+| **Windows x64** | [📥 **Download Windows x64**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x64.zip) | `x64` (64-bit) | Standalone Executable (Win 10/11) | Verified ✓ |
+| **Windows x86** | [📥 **Download Windows x86**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x86.zip) | `x86` (32-bit) | Standalone Executable (Win 7/8/10/11) | Verified ✓ |
+| **All Releases** | [📚 **View Full Release Archive**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases) | All Platforms | Full Release Changelog & Assets | Complete |
 
 ---
 
@@ -123,21 +134,23 @@ The output APK is located at: `app/build/outputs/apk/release/app-release.apk`
 ```bash
 cd ubour-vpn/windows/src
 
-# Run unit tests
+# Run all 81 unit tests
 dotnet test Ubour.Tests/Ubour.Tests.csproj -c Release
 
-# Publish Windows application
-dotnet publish Ubour/Ubour.csproj -c Release -r win-x64 --self-contained false
-dotnet publish Ubour/Ubour.csproj -c Release -r win-x86 --self-contained false
+# Publish Windows applications (Self-Contained Portable)
+dotnet publish Ubour/Ubour.csproj -c Release -r win-x64 --self-contained true
+dotnet publish Ubour/Ubour.csproj -c Release -r win-x86 --self-contained true
 ```
 
 ---
 
+<a id="privacy-security"></a>
 ## 🔒 Privacy & Security
 
 - **Zero Logging**: Ubour does not log, collect, or transmit any user browsing activity, IP addresses, or DNS queries.
-- **Client-Side Processing**: All packet manipulation and ad blocking occur 100% on your device.
+- **Client-Side Processing**: All packet manipulation and ad blocking occur 100% locally on your device.
 - **Automated Security Scanning**: Continuous secret leak scanning via `gitleaks` and automated dependency vulnerability audits via Dependabot.
+- **CodeQL Advanced Analysis**: Strict static code analysis enabled across C#, Java, Kotlin, and GitHub Actions.
 - **Security Policy**: Responsible vulnerability disclosure guidelines detailed in [`SECURITY.md`](SECURITY.md).
 
 ---
@@ -147,6 +160,7 @@ dotnet publish Ubour/Ubour.csproj -c Release -r win-x86 --self-contained false
 Ubour is built upon outstanding open-source projects:
 - **[GoodbyeDPI](https://github.com/ValdikSS/GoodbyeDPI)** by ValdikSS — Windows DPI circumvention utility.
 - **[WinDivert](https://github.com/basil00/Divert)** by basil00 — User-mode packet capture and diversion library for Windows.
+- **[Wintun](https://www.wintun.net/)** by WireGuard LLC — High-performance TUN driver for Windows.
 - **[ByeDPI](https://github.com/hiddify/ByeDPI)** & **[ByeDPIAndroid](https://github.com/dovecoteescapee/ByeDPIAndroid)** by dovecoteescapee & hufrea — Android native ByeDPI engine.
 - **[Sing-box](https://github.com/SagerNet/sing-box)** — Universal proxy platform for WARP & VLESS.
 - **[uBlock Origin](https://github.com/gorhill/uBlock)** by Raymond Hill (gorhill) — Open-source content blocking rules.
