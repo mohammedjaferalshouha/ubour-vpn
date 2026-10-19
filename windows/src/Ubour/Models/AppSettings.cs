@@ -14,6 +14,8 @@ public class AppSettings
     public bool EnableAdBlock { get; set; } = true;
     public string DpiMode { get; set; } = "Stable"; // "Stable" (-1), "Medium" (-5), "Aggressive" (-9)
     public bool WarpEnableAdBlock { get; set; } = true;
+    public string WarpEndpointHost { get; set; } = "162.159.195.1";
+    public int WarpEndpointPort { get; set; } = 4500;
 
     private static readonly string SettingsFilePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),

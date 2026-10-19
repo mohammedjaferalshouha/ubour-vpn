@@ -24,7 +24,7 @@ public static class DnsManager
     {
         try
         {
-            return NetworkInterface.GetAllNetworkInterfaces()
+            var validInterfaces = NetworkInterface.GetAllNetworkInterfaces()
                 .Where(ni => ni.OperationalStatus == OperationalStatus.Up &&
                     (ni.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 || ni.NetworkInterfaceType == NetworkInterfaceType.Ethernet) &&
                     !ni.Description.Contains("Virtual", StringComparison.OrdinalIgnoreCase) &&
@@ -32,12 +32,32 @@ public static class DnsManager
                     !ni.Description.Contains("VMware", StringComparison.OrdinalIgnoreCase) &&
                     !ni.Description.Contains("TAP", StringComparison.OrdinalIgnoreCase) &&
                     !ni.Description.Contains("Wintun", StringComparison.OrdinalIgnoreCase) &&
-                    !ni.Description.Contains("Ubour", StringComparison.OrdinalIgnoreCase))
-                .Select(ni => ni.Name)
+                    !ni.Description.Contains("Ubour", StringComparison.OrdinalIgnoreCase) &&
+                    !ni.Description.Contains("Filter", StringComparison.OrdinalIgnoreCase) &&
+                    !ni.Description.Contains("QoS", StringComparison.OrdinalIgnoreCase) &&
+                    !ni.Description.Contains("Miniport", StringComparison.OrdinalIgnoreCase) &&
+                    !ni.Description.Contains("LightWeight", StringComparison.OrdinalIgnoreCase) &&
+                    !ni.Name.Contains("Filter", StringComparison.OrdinalIgnoreCase) &&
+                    !ni.Name.Contains("QoS", StringComparison.OrdinalIgnoreCase) &&
+                    !ni.Name.Contains("Miniport", StringComparison.OrdinalIgnoreCase))
                 .ToList();
+
+            var gatewayInterfaces = validInterfaces
+                .Where(ni => ni.GetIPProperties().GatewayAddresses.Any(g => g.Address != null && g.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork))
+                .Select(ni => ni.Name)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (gatewayInterfaces.Count > 0)
+            {
+                return gatewayInterfaces;
+            }
+
+            return validInterfaces.Select(ni => ni.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         }
         catch { return new List<string>(); }
     }
+
 
     public static bool SetLocalDns() => ApplyDnsAddresses("127.0.0.1", "::1");
 
@@ -116,7 +136,7 @@ public static class DnsManager
             if (interfaces.Count == 0) return false;
 
             LoadSnapshots();
-            bool success = true;
+            int successCount = 0;
             foreach (string iface in interfaces)
             {
                 if (!ModifiedInterfaces.ContainsKey(iface))
@@ -124,14 +144,12 @@ public static class DnsManager
                     var snapshot = CaptureSnapshot(iface);
                     if (snapshot == null)
                     {
-                        success = false;
                         continue;
                     }
                     ModifiedInterfaces.Add(iface, snapshot);
                     if (!SaveSnapshots())
                     {
                         ModifiedInterfaces.Remove(iface);
-                        success = false;
                         continue;
                     }
                 }
@@ -140,13 +158,21 @@ public static class DnsManager
                 string v4 = string.Join(",", addresses.Where(a => !a.Contains(':')));
                 string v6 = string.Join(",", addresses.Where(a => a.Contains(':')));
                 string command = $"$ErrorActionPreference='Stop'; $a='{escaped}'; $servers=@({ToPowerShellArray(v4 + (string.IsNullOrEmpty(v6) ? string.Empty : "," + v6))}); Set-DnsClientServerAddress -InterfaceAlias $a -ServerAddresses $servers -ErrorAction Stop";
-                if (!RunPowerShell(command, out _, out _)) success = false;
+                if (RunPowerShell(command, out _, out string err))
+                {
+                    successCount++;
+                }
+                else
+                {
+                    AppLogger.Warn($"[DNS] Failed to set DNS on '{iface}': {err}");
+                }
             }
 
             FlushDns();
-            return success;
+            return successCount > 0;
         }
     }
+
 
     private static DnsInterfaceSnapshot? CaptureSnapshot(string alias)
     {

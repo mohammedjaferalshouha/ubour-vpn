@@ -18,6 +18,10 @@ public class LocalizationAndSettingsTests
     [InlineData("ModeVpnOnly")]
     [InlineData("ModeVpnAdBlock")]
     [InlineData("DpiStrength")]
+    [InlineData("WarpEndpointLabel")]
+    [InlineData("BtnScanPorts")]
+    [InlineData("ScanningPorts")]
+    [InlineData("PortScanFound")]
     public void LocalizationManager_ContainsKeys_InBothLanguages(string key)
     {
         string arVal = LocalizationManager.Get(key, "ar");
@@ -44,6 +48,9 @@ public class LocalizationAndSettingsTests
             CustomVlessUrl = "vless://test@1.2.3.4:443"
         };
 
+        settings.WarpEndpointHost = "188.114.97.1";
+        settings.WarpEndpointPort = 500;
+
         settings.Save(settingsPath);
 
         var loaded = AppSettings.Load(settingsPath);
@@ -53,7 +60,35 @@ public class LocalizationAndSettingsTests
         Assert.Equal(AppOperationMode.CUSTOM_VLESS, loaded.SelectedMode);
         Assert.Equal("-5", loaded.DpiMode);
         Assert.Equal("vless://test@1.2.3.4:443", loaded.CustomVlessUrl);
+        Assert.Equal("188.114.97.1", loaded.WarpEndpointHost);
+        Assert.Equal(500, loaded.WarpEndpointPort);
 
         try { Directory.Delete(testDirectory, recursive: true); } catch { }
     }
+
+    [Fact]
+    public void WarpManager_GetDefaultEndpoints_ContainsRecommendedPort4500()
+    {
+        var endpoints = WarpManager.GetDefaultEndpoints();
+        Assert.NotEmpty(endpoints);
+        Assert.Contains(endpoints, ep => ep.Port == 4500);
+        Assert.Contains(endpoints, ep => ep.Port == 500);
+        Assert.Contains(endpoints, ep => ep.Port == 1701);
+        Assert.Equal(4500, endpoints[0].Port);
+    }
+
+    [Fact]
+    public async Task WarpManager_ScanEndpointsAsync_ReturnsNonEmptyResults()
+    {
+        var results = await WarpManager.ScanEndpointsAsync();
+        Assert.NotEmpty(results);
+        Assert.Contains(results, ep => ep.Port == 4500);
+        Assert.All(results, ep =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(ep.Host));
+            Assert.True(ep.Port > 0);
+            Assert.False(string.IsNullOrWhiteSpace(ep.DisplayText));
+        });
+    }
+
 }

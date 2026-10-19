@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Numerics;
 using System.Security.Cryptography;
@@ -13,6 +15,26 @@ using System.Threading.Tasks;
 
 namespace Ubour.Services;
 
+public class WarpEndpointItem
+{
+    public string Host { get; set; } = "162.159.195.1";
+    public int Port { get; set; } = 4500;
+    public long LatencyMs { get; set; } = 0;
+    public string Note { get; set; } = "";
+
+    public string DisplayText
+    {
+        get
+        {
+            string latencyStr = LatencyMs > 0 ? $" ({LatencyMs} ms)" : "";
+            string noteStr = !string.IsNullOrEmpty(Note) ? $" - {Note}" : "";
+            return $"{Host}:{Port}{latencyStr}{noteStr}";
+        }
+    }
+
+    public override string ToString() => DisplayText;
+}
+
 public class WarpConfig
 {
     public string PrivateKey { get; set; } = "";
@@ -20,8 +42,8 @@ public class WarpConfig
     public string PeerPublicKey { get; set; } = "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=";
     public string LocalIpv4 { get; set; } = "172.16.0.2/32";
     public string LocalIpv6 { get; set; } = "2606:4700:110:8a43:e459:c9b0:2598:5068/128";
-    public string EndpointHost { get; set; } = "162.159.192.1";
-    public int EndpointPort { get; set; } = 2408;
+    public string EndpointHost { get; set; } = "162.159.195.1";
+    public int EndpointPort { get; set; } = 4500;
     public int[] Reserved { get; set; } = new int[] { 0, 0, 0 };
 }
 
@@ -33,65 +55,162 @@ public static class WarpManager
         "warp_account.json"
     );
 
-    private static readonly (string host, int port)[] KnownFastEndpoints = new[]
+    public static readonly string[] CandidateIps = new[]
     {
-        ("162.159.192.1", 2408),
-        ("162.159.193.1", 2408),
-        ("162.159.195.1", 2408),
-        ("188.114.96.1", 2408),
-        ("188.114.97.1", 2408),
-        ("162.159.192.1", 500),
-        ("162.159.193.1", 500),
-        ("162.159.195.1", 500),
-        ("188.114.96.1", 500),
-        ("188.114.97.1", 500),
-        ("162.159.192.1", 4500),
-        ("162.159.193.1", 4500),
-        ("162.159.195.1", 4500),
-        ("188.114.96.1", 4500),
-        ("188.114.97.1", 4500)
+        "162.159.195.1",
+        "188.114.97.1",
+        "188.114.96.1",
+        "162.159.192.1",
+        "162.159.193.1",
+        "188.114.98.1",
+        "188.114.99.1"
     };
 
-    public static async Task<(string host, int port)> FindFastestEndpointAsync()
+    public static readonly int[] CandidatePorts = new[]
     {
-        var tasks = new List<Task<(string host, int port, long latency)>>();
-        foreach (var ep in KnownFastEndpoints)
+        4500, 500, 1701, 854, 859, 864, 878, 880, 890, 891, 894, 903, 908, 928,
+        934, 939, 942, 943, 945, 946, 955, 968, 987, 988, 1002, 1010, 1014, 1018,
+        1070, 1074, 1180, 1387, 2147, 2187, 2222, 3128, 3389, 3478, 3556, 8080,
+        8443, 51820, 2408
+    };
+
+    public static string GetPortNote(int port) => port switch
+    {
+        4500 => "موصى به (IPsec NAT-T)",
+        500 => "IKE VPN",
+        1701 => "L2TP VPN",
+        2408 => "الافتراضي القديم",
+        51820 => "WireGuard قياسي",
+        8080 or 8443 => "منفذ بديل للويب",
+        _ => "منفذ سحابي مخصص"
+    };
+
+    public static List<WarpEndpointItem> GetDefaultEndpoints(string? selectedHost = null, int? selectedPort = null)
+    {
+        var list = new List<WarpEndpointItem>();
+
+        // Always put universal/recommended ports first
+        string host = !string.IsNullOrWhiteSpace(selectedHost) ? selectedHost : "162.159.195.1";
+        int port = (selectedPort.HasValue && selectedPort.Value > 0) ? selectedPort.Value : 4500;
+
+        // Custom/Selected first if not default
+        if (host != "162.159.195.1" || port != 4500)
         {
-            tasks.Add(Task.Run(async () =>
+            list.Add(new WarpEndpointItem
             {
-                var sw = Stopwatch.StartNew();
-                try
-                {
-                    using var udp = new UdpClient();
-                    udp.Client.ReceiveTimeout = 400;
-                    udp.Client.SendTimeout = 400;
-                    byte[] pingData = new byte[] { 0x01, 0x00, 0x00, 0x00 };
-                    await udp.SendAsync(pingData, pingData.Length, ep.host, ep.port);
-                    sw.Stop();
-                    return (ep.host, ep.port, sw.ElapsedMilliseconds);
-                }
-                catch
-                {
-                    return (ep.host, ep.port, 9999L);
-                }
-            }));
+                Host = host,
+                Port = port,
+                Note = "المحدد حالياً"
+            });
         }
 
-        try
+        // Add recommended ports across IPs
+        var topPorts = new[] { 4500, 500, 1701 };
+        foreach (var ip in CandidateIps)
         {
-            var results = await Task.WhenAll(tasks);
-            var best = results.OrderBy(r => r.latency).FirstOrDefault();
-            if (best.latency < 9999)
+            foreach (var p in topPorts)
             {
-                return (best.host, best.port);
+                if (!list.Any(x => x.Host == ip && x.Port == p))
+                {
+                    list.Add(new WarpEndpointItem
+                    {
+                        Host = ip,
+                        Port = p,
+                        Note = GetPortNote(p)
+                    });
+                }
             }
         }
-        catch { }
 
-        return ("162.159.192.1", 2408);
+        // Add remaining candidate ports
+        foreach (var ip in CandidateIps.Take(3))
+        {
+            foreach (var p in CandidatePorts)
+            {
+                if (!list.Any(x => x.Host == ip && x.Port == p))
+                {
+                    list.Add(new WarpEndpointItem
+                    {
+                        Host = ip,
+                        Port = p,
+                        Note = GetPortNote(p)
+                    });
+                }
+            }
+        }
+
+        return list;
     }
 
-    public static async Task<WarpConfig> GetOrRegisterConfigAsync()
+    public static async Task<List<WarpEndpointItem>> ScanEndpointsAsync()
+    {
+        var ipLatencies = new ConcurrentDictionary<string, long>();
+
+        // 1. Fast parallel ICMP ping test to all candidate IPs
+        var pingTasks = CandidateIps.Select(async ip =>
+        {
+            try
+            {
+                using var ping = new Ping();
+                var reply = await ping.SendPingAsync(ip, 800);
+                if (reply.Status == IPStatus.Success && reply.RoundtripTime >= 0)
+                {
+                    ipLatencies[ip] = reply.RoundtripTime;
+                }
+            }
+            catch { }
+        });
+
+        await Task.WhenAll(pingTasks);
+
+        var sortedIps = ipLatencies.OrderBy(k => k.Value).Select(k => k.Key).ToList();
+        if (sortedIps.Count == 0)
+        {
+            sortedIps.AddRange(CandidateIps);
+        }
+
+        var results = new List<WarpEndpointItem>();
+
+        // 2. Prioritize resilient ports (4500, 500, 1701) for the fastest IPs
+        var priorityPorts = new[] { 4500, 500, 1701 };
+        foreach (var ip in sortedIps)
+        {
+            long lat = ipLatencies.TryGetValue(ip, out var l) ? l : 0;
+            foreach (var port in priorityPorts)
+            {
+                results.Add(new WarpEndpointItem
+                {
+                    Host = ip,
+                    Port = port,
+                    LatencyMs = lat,
+                    Note = GetPortNote(port)
+                });
+            }
+        }
+
+        // 3. Add other ports for top IPs
+        foreach (var ip in sortedIps.Take(2))
+        {
+            long lat = ipLatencies.TryGetValue(ip, out var l) ? l : 0;
+            foreach (var port in CandidatePorts)
+            {
+                if (!results.Any(r => r.Host == ip && r.Port == port))
+                {
+                    results.Add(new WarpEndpointItem
+                    {
+                        Host = ip,
+                        Port = port,
+                        LatencyMs = lat,
+                        Note = GetPortNote(port)
+                    });
+                }
+            }
+        }
+
+        return results;
+    }
+
+    public static async Task<WarpConfig> GetOrRegisterConfigAsync(string? preferredHost = null, int? preferredPort = null, string? baseDir = null)
     {
         WarpConfig? config = null;
         try
@@ -100,7 +219,7 @@ public static class WarpManager
             {
                 string json = await File.ReadAllTextAsync(CacheFile);
                 var cached = JsonSerializer.Deserialize<WarpConfig>(json);
-                if (cached != null && !string.IsNullOrWhiteSpace(cached.PrivateKey) && cached.Reserved != null && cached.Reserved.Length == 3)
+                if (cached != null && !string.IsNullOrWhiteSpace(cached.PrivateKey) && cached.Reserved != null && cached.Reserved.Length == 3 && (cached.Reserved[0] != 0 || cached.Reserved[1] != 0 || cached.Reserved[2] != 0))
                 {
                     config = cached;
                 }
@@ -110,7 +229,7 @@ public static class WarpManager
 
         if (config == null)
         {
-            config = await RegisterNewAccountAsync();
+            config = await RegisterNewAccountAsync(baseDir);
             try
             {
                 string dir = Path.GetDirectoryName(CacheFile)!;
@@ -121,20 +240,32 @@ public static class WarpManager
             catch { }
         }
 
-        try
+        // Apply preferred endpoint or safe defaults (4500 over 2408)
+        if (!string.IsNullOrWhiteSpace(preferredHost))
         {
-            var (bestHost, bestPort) = await FindFastestEndpointAsync();
-            config.EndpointHost = bestHost;
-            config.EndpointPort = bestPort;
+            config.EndpointHost = preferredHost;
         }
-        catch { }
+        else if (string.IsNullOrWhiteSpace(config.EndpointHost) || config.EndpointPort == 2408)
+        {
+            config.EndpointHost = "162.159.195.1";
+        }
+
+        if (preferredPort.HasValue && preferredPort.Value > 0)
+        {
+            config.EndpointPort = preferredPort.Value;
+        }
+        else if (config.EndpointPort == 0 || config.EndpointPort == 2408)
+        {
+            config.EndpointPort = 4500;
+        }
 
         return config;
     }
 
-    private static async Task<WarpConfig> RegisterNewAccountAsync()
+
+    private static async Task<WarpConfig> RegisterNewAccountAsync(string? baseDir = null)
     {
-        var (privKeyB64, pubKeyB64) = GenerateCurve25519KeyPair();
+        var (privKeyB64, pubKeyB64) = GenerateCurve25519KeyPair(baseDir);
 
         var config = new WarpConfig
         {
@@ -142,10 +273,10 @@ public static class WarpManager
             PublicKey = pubKeyB64,
             PeerPublicKey = "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
             LocalIpv4 = "172.16.0.2/32",
-            LocalIpv6 = "2606:4700:110:8a43:e459:c9b0:2598:5068/128",
-            EndpointHost = "162.159.192.1",
-            EndpointPort = 2408,
-            Reserved = new int[] { 122, 15, 67 }
+            LocalIpv6 = "2606:4700:110:8e66:d840:b996:8ad2:e7f6/128",
+            EndpointHost = "162.159.195.1",
+            EndpointPort = 4500,
+            Reserved = new int[] { 0, 0, 0 }
         };
 
         try
@@ -233,15 +364,58 @@ public static class WarpManager
         return config;
     }
 
-    private static (string privKey, string pubKey) GenerateCurve25519KeyPair()
+    private static (string privKey, string pubKey) GenerateCurve25519KeyPair(string? baseDir = null)
     {
-        byte[] priv = new byte[32];
-        RandomNumberGenerator.Fill(priv);
-        priv[0] &= 248;
-        priv[31] = (byte)((priv[31] & 127) | 64);
+        try
+        {
+            string arch = Environment.Is64BitOperatingSystem ? "x86_64" : "x86";
+            string[] candidates = new[]
+            {
+                !string.IsNullOrEmpty(baseDir) ? Path.Combine(baseDir, "engine", arch, "sing-box.exe") : "",
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "engine", arch, "sing-box.exe"),
+                Path.Combine(AppContext.BaseDirectory, "engine", arch, "sing-box.exe")
+            };
 
-        byte[] pub = GeneratePublicKey(priv);
-        return (Convert.ToBase64String(priv), Convert.ToBase64String(pub));
+            string? exe = candidates.FirstOrDefault(c => !string.IsNullOrEmpty(c) && File.Exists(c));
+            if (exe != null)
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = exe,
+                    Arguments = "generate wg-keypair",
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var proc = Process.Start(psi);
+                if (proc != null)
+                {
+                    string output = proc.StandardOutput.ReadToEnd();
+                    proc.WaitForExit(3000);
+                    string? priv = null;
+                    string? pub = null;
+                    foreach (var line in output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        if (line.StartsWith("PrivateKey:", StringComparison.OrdinalIgnoreCase))
+                            priv = line.Substring("PrivateKey:".Length).Trim();
+                        else if (line.StartsWith("PublicKey:", StringComparison.OrdinalIgnoreCase))
+                            pub = line.Substring("PublicKey:".Length).Trim();
+                    }
+                    if (!string.IsNullOrEmpty(priv) && !string.IsNullOrEmpty(pub))
+                    {
+                        return (priv, pub);
+                    }
+                }
+            }
+        }
+        catch { }
+
+        byte[] fallbackPriv = new byte[32];
+        RandomNumberGenerator.Fill(fallbackPriv);
+        fallbackPriv[0] &= 248;
+        fallbackPriv[31] = (byte)((fallbackPriv[31] & 127) | 64);
+        byte[] fallbackPub = GeneratePublicKey(fallbackPriv);
+        return (Convert.ToBase64String(fallbackPriv), Convert.ToBase64String(fallbackPub));
     }
 
     private static readonly BigInteger P = BigInteger.Pow(2, 255) - 19;

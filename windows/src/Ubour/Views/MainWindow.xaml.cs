@@ -48,10 +48,11 @@ public partial class MainWindow : Window
         ApplyLanguage(_settings.Language);
         ApplyTheme(_settings.Theme);
         SetSelectedModeUI(_settings.SelectedMode);
+        InitializeEndpointsUI();
 
         SetupStatsTimer();
         SetupLogsListener();
-            }
+    }
 
     private void DetectBaseDirectory()
     {
@@ -107,6 +108,9 @@ public partial class MainWindow : Window
         LblWarpSubMode.Text = lang == "ar" ? "خيارات النفق:" : "Tunnel Options:";
         RbWarpWithAds.Content = LocalizationManager.Get("WarpOptionAdBlock", lang);
         RbWarpOnly.Content = LocalizationManager.Get("WarpOptionOnly", lang);
+
+        LblWarpEndpoint.Text = LocalizationManager.Get("WarpEndpointLabel", lang);
+        TxtScanButton.Text = LocalizationManager.Get("BtnScanPorts", lang);
 
         TxtModeAdBlockTitle.Text = LocalizationManager.Get("ModeAdBlockOnly", lang);
         TxtModeAdBlockDesc.Text = LocalizationManager.Get("ModeAdBlockOnlyDesc", lang);
@@ -285,6 +289,89 @@ public partial class MainWindow : Window
             : LocalizationManager.Get("ModeWarpDescOnly", lang);
     }
 
+    private void InitializeEndpointsUI()
+    {
+        try
+        {
+            var endpoints = WarpManager.GetDefaultEndpoints(_settings.WarpEndpointHost, _settings.WarpEndpointPort);
+            CmbWarpEndpoints.ItemsSource = endpoints;
+
+            var selected = endpoints.FirstOrDefault(x => x.Host == _settings.WarpEndpointHost && x.Port == _settings.WarpEndpointPort)
+                           ?? endpoints.FirstOrDefault();
+            if (selected != null)
+            {
+                CmbWarpEndpoints.SelectedItem = selected;
+            }
+
+            TxtWarpEndpointStatus.Text = string.Format(
+                _settings.Language == "ar" ? "المنفذ المعتمد: {0}:{1}" : "Selected endpoint: {0}:{1}",
+                _settings.WarpEndpointHost,
+                _settings.WarpEndpointPort
+            );
+        }
+        catch { }
+    }
+
+    private void CmbWarpEndpoints_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (CmbWarpEndpoints.SelectedItem is WarpEndpointItem item)
+        {
+            _settings.WarpEndpointHost = item.Host;
+            _settings.WarpEndpointPort = item.Port;
+            _settings.Save();
+
+            TxtWarpEndpointStatus.Text = string.Format(
+                _settings.Language == "ar" ? "المنفذ المعتمد: {0}:{1}" : "Selected endpoint: {0}:{1}",
+                item.Host,
+                item.Port
+            );
+        }
+    }
+
+    private async void BtnScanWarpPorts_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (_currentState == VpnState.CONNECTED || _currentState == VpnState.CONNECTING)
+        {
+            string notice = LocalizationManager.Get("LockNotice", _settings.Language);
+            MessageBox.Show(this, notice, LocalizationManager.Get("AppName", _settings.Language), MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            BtnScanWarpPorts.IsEnabled = false;
+            TxtScanButton.Text = LocalizationManager.Get("ScanningPorts", _settings.Language);
+            TxtScanIcon.Text = "⏳";
+            TxtWarpEndpointStatus.Text = _settings.Language == "ar" ? "جاري فحص سرعة واستجابة كافة المنافذ..." : "Scanning all ports and endpoints...";
+
+            var endpoints = await WarpManager.ScanEndpointsAsync();
+            if (endpoints.Count > 0)
+            {
+                CmbWarpEndpoints.ItemsSource = endpoints;
+                var best = endpoints.First();
+                CmbWarpEndpoints.SelectedItem = best;
+                _settings.WarpEndpointHost = best.Host;
+                _settings.WarpEndpointPort = best.Port;
+                _settings.Save();
+
+                TxtWarpEndpointStatus.Text = string.Format(
+                    LocalizationManager.Get("PortScanFound", _settings.Language),
+                    best.Host,
+                    best.Port,
+                    best.LatencyMs
+                );
+            }
+        }
+        catch { }
+        finally
+        {
+            BtnScanWarpPorts.IsEnabled = true;
+            TxtScanButton.Text = LocalizationManager.Get("BtnScanPorts", _settings.Language);
+            TxtScanIcon.Text = "⚡";
+        }
+    }
+
+
     private void DpiMode_Checked(object sender, RoutedEventArgs e)
     {
         if (_settings == null) return;
@@ -400,7 +487,9 @@ public partial class MainWindow : Window
                             }
                         }
 
-                        var warpConfig = await WarpManager.GetOrRegisterConfigAsync();
+                        var warpConfig = await WarpManager.GetOrRegisterConfigAsync(_settings.WarpEndpointHost, _settings.WarpEndpointPort, _baseDir);
+                        warpConfig.EndpointHost = _settings.WarpEndpointHost;
+                        warpConfig.EndpointPort = _settings.WarpEndpointPort;
                         bool sbOk = _singbox.StartWarp(_baseDir, warpConfig, enableAdBlock: withAdBlock);
                         bool warpReady = sbOk && _singbox.VerifyRunning(2080, 2500) && _singbox.VerifyTunRunning(5000);
                         if (!warpReady)
