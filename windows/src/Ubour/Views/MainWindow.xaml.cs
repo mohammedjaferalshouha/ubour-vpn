@@ -413,6 +413,25 @@ public partial class MainWindow : Window
                             return false;
                         }
 
+                        if (withAdBlock)
+                        {
+                            if (!DnsManager.SetLocalDns())
+                            {
+                                failureReason = "تعذر تطبيق DNS المحلي على جميع واجهات الشبكة";
+                                _singbox.Stop();
+                                _adBlock.Stop();
+                                DnsManager.RestoreDns();
+                                return false;
+                            }
+                        }
+                        else if (!DnsManager.SetCustomDns("1.1.1.1"))
+                        {
+                            failureReason = "تعذر تطبيق DNS المختار على جميع واجهات الشبكة";
+                            _singbox.Stop();
+                            DnsManager.RestoreDns();
+                            return false;
+                        }
+
                         return true;
                     });
                     break;

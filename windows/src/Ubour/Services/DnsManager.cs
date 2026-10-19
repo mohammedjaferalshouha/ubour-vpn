@@ -113,11 +113,7 @@ public static class DnsManager
         lock (LockObj)
         {
             var interfaces = GetActiveNetworkInterfaces();
-            if (interfaces.Count == 0)
-            {
-                AppLogger.Error("[DNS] No active physical network interfaces were found for DNS configuration.");
-                return false;
-            }
+            if (interfaces.Count == 0) return false;
 
             LoadSnapshots();
             bool success = true;
@@ -128,7 +124,6 @@ public static class DnsManager
                     var snapshot = CaptureSnapshot(iface);
                     if (snapshot == null)
                     {
-                        AppLogger.Error($"[DNS] Could not capture the current DNS settings for interface '{iface}'.");
                         success = false;
                         continue;
                     }
@@ -145,16 +140,7 @@ public static class DnsManager
                 string v4 = string.Join(",", addresses.Where(a => !a.Contains(':')));
                 string v6 = string.Join(",", addresses.Where(a => a.Contains(':')));
                 string command = $"$ErrorActionPreference='Stop'; $a='{escaped}'; $servers=@({ToPowerShellArray(v4 + (string.IsNullOrEmpty(v6) ? string.Empty : "," + v6))}); Set-DnsClientServerAddress -InterfaceAlias $a -ServerAddresses $servers -ErrorAction Stop";
-                if (!RunPowerShell(command, out string output, out string error))
-                {
-                    string detail = !string.IsNullOrWhiteSpace(error)
-                        ? error.Trim()
-                        : !string.IsNullOrWhiteSpace(output)
-                            ? output.Trim()
-                            : "PowerShell did not provide an error message.";
-                    AppLogger.Error($"[DNS] Failed to apply DNS to interface '{iface}': {detail}");
-                    success = false;
-                }
+                if (!RunPowerShell(command, out _, out _)) success = false;
             }
 
             FlushDns();
@@ -166,16 +152,7 @@ public static class DnsManager
     {
         string escaped = EscapePowerShell(alias);
         string command = $"$ErrorActionPreference='Stop'; $a='{escaped}'; $v4=Get-DnsClientServerAddress -InterfaceAlias $a -AddressFamily IPv4 -ErrorAction Stop; $v6=Get-DnsClientServerAddress -InterfaceAlias $a -AddressFamily IPv6 -ErrorAction SilentlyContinue; $d4=(Get-NetIPInterface -InterfaceAlias $a -AddressFamily IPv4 -ErrorAction Stop | Select-Object -First 1).Dhcp -eq 'Enabled'; $d6=(Get-NetIPInterface -InterfaceAlias $a -AddressFamily IPv6 -ErrorAction SilentlyContinue | Select-Object -First 1).Dhcp -eq 'Enabled'; [pscustomobject]@{{Alias=$a; V4Dhcp=$d4; V4=@($v4.ServerAddresses); V6Dhcp=$d6; V6=@($v6.ServerAddresses)}} | ConvertTo-Json -Compress";
-        if (!RunPowerShell(command, out string output, out string error) || string.IsNullOrWhiteSpace(output))
-        {
-            string detail = !string.IsNullOrWhiteSpace(error)
-                ? error.Trim()
-                : !string.IsNullOrWhiteSpace(output)
-                    ? output.Trim()
-                    : "PowerShell returned no snapshot data.";
-            AppLogger.Error($"[DNS] Snapshot command failed for interface '{alias}': {detail}");
-            return null;
-        }
+        if (!RunPowerShell(command, out string output, out _) || string.IsNullOrWhiteSpace(output)) return null;
         try
         {
             using var json = JsonDocument.Parse(output.Trim());
@@ -185,11 +162,7 @@ public static class DnsManager
                 root.GetProperty("V4Dhcp").GetBoolean(), ReadStringArray(root.GetProperty("V4")),
                 root.GetProperty("V6Dhcp").GetBoolean(), ReadStringArray(root.GetProperty("V6")));
         }
-        catch (Exception ex)
-        {
-            AppLogger.Error($"[DNS] Could not parse the snapshot for interface '{alias}': {ex.Message}");
-            return null;
-        }
+        catch { return null; }
     }
 
     private static void RestoreDnsLocked()
@@ -229,25 +202,16 @@ public static class DnsManager
                 WindowStyle = ProcessWindowStyle.Hidden
             };
             using var process = Process.Start(startInfo);
-            if (process == null)
-            {
-                stderr = "PowerShell process could not be started.";
-                return false;
-            }
+            if (process == null) return false;
             var outputTask = process.StandardOutput.ReadToEndAsync();
             var errorTask = process.StandardError.ReadToEndAsync();
             if (!process.WaitForExit(10000))
             {
                 try { process.Kill(true); } catch { }
-                stderr = "PowerShell DNS operation timed out after 10 seconds.";
                 return false;
             }
             stdout = outputTask.GetAwaiter().GetResult();
             stderr = errorTask.GetAwaiter().GetResult();
-            if (process.ExitCode != 0 && string.IsNullOrWhiteSpace(stderr))
-            {
-                stderr = $"PowerShell exited with code {process.ExitCode}.";
-            }
             return process.ExitCode == 0;
         }
         catch (Exception ex)

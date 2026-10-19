@@ -43,13 +43,6 @@ public class SingboxManagerTests
         Assert.Contains("dns-filter", json);
         Assert.Contains("mixed-in", json);
 
-        using var config = System.Text.Json.JsonDocument.Parse(json);
-        var dnsServer = config.RootElement.GetProperty("dns").GetProperty("servers")[0];
-        Assert.Equal("127.0.0.1", dnsServer.GetProperty("server").GetString());
-        Assert.Contains(
-            config.RootElement.GetProperty("route").GetProperty("rules").EnumerateArray(),
-            rule => rule.TryGetProperty("action", out var action) && action.GetString() == "hijack-dns");
-
         try { Directory.Delete(testDirectory, recursive: true); } catch { }
     }
 
