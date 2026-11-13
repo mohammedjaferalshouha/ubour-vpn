@@ -69,6 +69,7 @@ public class AdBlockEngine
     private CancellationTokenSource? _cts;
     private string _upstreamDns = "1.1.1.1";
     private string _secondaryDns = "1.0.0.1";
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (byte[] Response, long ExpiresAtMs)> _dnsCache = new();
     public bool IsRunning { get; private set; } = false;
 
     public static void ResetStats()
@@ -412,17 +413,35 @@ public class AdBlockEngine
                 return;
             }
 
-            // Primary upstream with 2500ms timeout
-            byte[]? upstreamResp = await QueryUpstreamUdpAsync(query, _upstreamDns, 2500, ct);
+            int qtype = ParseQType(query);
+            string? cacheKey = (qname != null && qtype > 0) ? $"{qname.ToLowerInvariant()}:{qtype}" : null;
+            if (cacheKey != null && _dnsCache.TryGetValue(cacheKey, out var cached)
+                && Environment.TickCount64 < cached.ExpiresAtMs
+                && cached.Response.Length >= 2 && query.Length >= 2)
+            {
+                byte[] reply = (byte[])cached.Response.Clone();
+                reply[0] = query[0];
+                reply[1] = query[1];
+                await server.SendAsync(reply, reply.Length, clientEp);
+                return;
+            }
+
+            // Primary upstream with 2000ms timeout
+            byte[]? upstreamResp = await QueryUpstreamUdpAsync(query, _upstreamDns, 2000, ct);
 
             // Failover to secondary upstream if primary failed or timed out
             if (upstreamResp == null && !string.IsNullOrWhiteSpace(_secondaryDns) && _secondaryDns != _upstreamDns)
             {
-                upstreamResp = await QueryUpstreamUdpAsync(query, _secondaryDns, 2500, ct);
+                upstreamResp = await QueryUpstreamUdpAsync(query, _secondaryDns, 2000, ct);
             }
 
             if (upstreamResp != null)
             {
+                if (cacheKey != null && upstreamResp.Length >= 12)
+                {
+                    if (_dnsCache.Count > 1024) _dnsCache.Clear();
+                    _dnsCache[cacheKey] = ((byte[])upstreamResp.Clone(), Environment.TickCount64 + 60_000L);
+                }
                 await server.SendAsync(upstreamResp, upstreamResp.Length, clientEp);
             }
             else
@@ -639,6 +658,21 @@ public class AdBlockEngine
         }
 
         return ms.ToArray();
+    }
+
+    private static int ParseQType(byte[] query)
+    {
+        if (query.Length < 12) return -1;
+        int offset = 12;
+        while (offset < query.Length)
+        {
+            int len = query[offset];
+            if (len == 0) { offset += 1; break; }
+            if (len > 63) return -1;
+            offset += len + 1;
+        }
+        if (offset + 2 > query.Length) return -1;
+        return (query[offset] << 8) | query[offset + 1];
     }
 
     private static async Task<byte[]?> QueryUpstreamUdpAsync(byte[] query, string upstreamIp, int timeoutMs, CancellationToken ct)
