@@ -71,19 +71,18 @@ class DnsFilterServer(
             }
 
             // Forward to upstream DNS
-            val upstreamSocket = DatagramSocket().apply {
-                socketProtector?.invoke(this)
-                soTimeout = 3000
+            val responseData = DatagramSocket().use { upstreamSocket ->
+                socketProtector?.invoke(upstreamSocket)
+                upstreamSocket.soTimeout = 3000
+                val upstreamPacket = DatagramPacket(data, data.size, InetAddress.getByName(upstreamDns), upstreamPort)
+                upstreamSocket.send(upstreamPacket)
+
+                val responseBuffer = ByteArray(4096)
+                val responsePacket = DatagramPacket(responseBuffer, responseBuffer.size)
+                upstreamSocket.receive(responsePacket)
+                responsePacket.data.copyOf(responsePacket.length)
             }
-            val upstreamPacket = DatagramPacket(data, data.size, InetAddress.getByName(upstreamDns), upstreamPort)
-            upstreamSocket.send(upstreamPacket)
 
-            val responseBuffer = ByteArray(4096)
-            val responsePacket = DatagramPacket(responseBuffer, responseBuffer.size)
-            upstreamSocket.receive(responsePacket)
-            upstreamSocket.close()
-
-            val responseData = responsePacket.data.copyOf(responsePacket.length)
             sendPacket(responseData, clientAddress, clientPort)
 
         } catch (e: Exception) {
@@ -205,6 +204,7 @@ class DnsFilterServer(
         isRunning.set(false)
         serverJob?.cancel()
         serverJob = null
+        scope.coroutineContext.cancelChildren()
         try {
             serverSocket?.close()
         } catch (e: Exception) {

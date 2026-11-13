@@ -91,4 +91,27 @@ public class LocalizationAndSettingsTests
         });
     }
 
+    [Fact]
+    public void LocalizationManager_HasArabicDisconnectingAndVlessStrings()
+    {
+        Assert.NotEqual("StatusDisconnecting", LocalizationManager.Get("StatusDisconnecting", "ar"));
+        Assert.NotEqual("ModeVless", LocalizationManager.Get("ModeVless", "ar"));
+        Assert.NotEqual("ModeVless", LocalizationManager.Get("ModeVless", "en"));
+        Assert.NotEqual("ModeVlessDesc", LocalizationManager.Get("ModeVlessDesc", "ar"));
+        Assert.NotEqual("ModeVlessDesc", LocalizationManager.Get("ModeVlessDesc", "en"));
+    }
+
+    [Fact]
+    public void AppLogger_EnforcesMaxQueueCapacity()
+    {
+        AppLogger.Clear();
+        for (int i = 0; i < 1200; i++)
+        {
+            AppLogger.Info($"Test message {i}");
+        }
+        var lines = AppLogger.GetAllLogs().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+        Assert.True(lines.Length <= 1000, $"Expected <= 1000 lines, got {lines.Length}");
+        AppLogger.Clear();
+    }
+
 }

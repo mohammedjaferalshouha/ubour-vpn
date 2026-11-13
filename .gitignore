@@ -25,10 +25,6 @@ Captures/
 *.keystore
 keystore.properties
 
-# Allow official release keystore for CI signing
-!apk+ublock/keystore/**
-!apk+ublock/keystore.properties
-
 # .NET / Visual Studio
 bin/
 obj/

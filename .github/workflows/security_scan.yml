@@ -47,12 +47,13 @@ jobs:
         run: |
           echo "Scanning repository files for private keys or certificates..."
           FOUND=0
-          find . -type f \( -name "*.pem" -o -name "*.key" -o -name "*.p12" -o -name "*.pfx" \) ! -path "*/.git/*" | while read -r file; do
-            echo "::warning file=$file::Sensitive key/certificate file detected: $file"
+          while IFS= read -r file; do
+            echo "::error file=$file::Sensitive key/certificate file detected: $file"
             FOUND=1
-          done
+          done < <(find . -type f \( -name "*.pem" -o -name "*.key" -o -name "*.p12" -o -name "*.pfx" -o -name "*.jks" -o -name "*.keystore" -o -name "keystore.properties" \) ! -path "*/.git/*")
           if [ "$FOUND" -eq 1 ]; then
-            echo "Warning: Sensitive certificate files should be secured."
+            echo "Error: Exposed sensitive certificate/key files detected."
+            exit 1
           else
             echo "No exposed certificate/key files found."
           fi

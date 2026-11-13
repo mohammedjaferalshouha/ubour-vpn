@@ -144,6 +144,11 @@ class MainActivity : AppCompatActivity() {
                 binding.bypassModeCard.visibility = View.VISIBLE
                 binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_cyan))
             }
+            AppOperationMode.CUSTOM_VLESS.ordinal -> {
+                binding.rbOpVless.isChecked = true
+                binding.bypassModeCard.visibility = View.GONE
+                binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_emerald))
+            }
             else -> {
                 binding.rbOpWarp.isChecked = true
                 binding.bypassModeCard.visibility = View.GONE
@@ -185,6 +190,11 @@ class MainActivity : AppCompatActivity() {
                         binding.switchAdBlock.isChecked = false
                     }
                     AppOperationMode.VPN_ONLY
+                }
+                R.id.rbOpVless -> {
+                    binding.bypassModeCard.visibility = View.GONE
+                    binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_emerald))
+                    AppOperationMode.CUSTOM_VLESS
                 }
                 else -> {
                     binding.bypassModeCard.visibility = View.GONE
@@ -277,6 +287,7 @@ class MainActivity : AppCompatActivity() {
             binding.rbOpFull.isChecked -> AppOperationMode.VPN_AND_ADBLOCK
             binding.rbOpAdBlockOnly.isChecked -> AppOperationMode.ADBLOCK_ONLY
             binding.rbOpVpnOnly.isChecked -> AppOperationMode.VPN_ONLY
+            binding.rbOpVless.isChecked -> AppOperationMode.CUSTOM_VLESS
             else -> AppOperationMode.WARP_AND_ADBLOCK
         }
     }
@@ -551,8 +562,6 @@ class MainActivity : AppCompatActivity() {
         val input = android.widget.EditText(this).apply {
             hint = "vless://uuid@host:port?security=reality&sni=...&pbk=...&sid=..."
             setText(currentUrl)
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.GRAY)
             setPadding(32, 32, 32, 32)
         }
 

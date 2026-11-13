@@ -55,9 +55,12 @@ public class AdBlockEngine
     };
 
     public static int TotalRules => _blockedHashes.Length;
-    public static long BlockedAdsCount { get; private set; } = 0;
-    public static long BlockedTrackersCount { get; private set; } = 0;
-    public static long TotalQueries { get; private set; } = 0;
+    private static long _blockedAdsCount = 0;
+    private static long _blockedTrackersCount = 0;
+    private static long _totalQueries = 0;
+    public static long BlockedAdsCount => Interlocked.Read(ref _blockedAdsCount);
+    public static long BlockedTrackersCount => Interlocked.Read(ref _blockedTrackersCount);
+    public static long TotalQueries => Interlocked.Read(ref _totalQueries);
 
     private UdpClient? _udpServer;
     private UdpClient? _udpServerV6;
@@ -70,9 +73,9 @@ public class AdBlockEngine
 
     public static void ResetStats()
     {
-        BlockedAdsCount = 0;
-        BlockedTrackersCount = 0;
-        TotalQueries = 0;
+        Interlocked.Exchange(ref _blockedAdsCount, 0);
+        Interlocked.Exchange(ref _blockedTrackersCount, 0);
+        Interlocked.Exchange(ref _totalQueries, 0);
     }
 
     private static long HashDomain(string domain)
@@ -224,7 +227,7 @@ public class AdBlockEngine
 
     public static bool IsDomainBlocked(string rawDomain)
     {
-        TotalQueries++;
+        Interlocked.Increment(ref _totalQueries);
         string domain = rawDomain.Trim().TrimEnd('.').ToLowerInvariant();
         if (string.IsNullOrEmpty(domain)) return false;
 
@@ -276,11 +279,11 @@ public class AdBlockEngine
     {
         if (domain.Contains("track") || domain.Contains("analytics") || domain.Contains("metric") || domain.Contains("telemetry") || domain.Contains("adjust") || domain.Contains("appsflyer"))
         {
-            BlockedTrackersCount++;
+            Interlocked.Increment(ref _blockedTrackersCount);
         }
         else
         {
-            BlockedAdsCount++;
+            Interlocked.Increment(ref _blockedAdsCount);
         }
     }
 

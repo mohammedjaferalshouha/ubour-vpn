@@ -27,10 +27,10 @@ class ByeDpiProxy {
             }
 
             val (desyncMethod, splitPos, splitAtHost, _, fakeSni, desyncHttp, desyncHttps) = when (mode) {
-                0 -> Tuple7(0, 0, false, false, "", true, true) // Mode 0 = Direct clean SOCKS5 with AdBlock inspection
-                2 -> Tuple7(1, 1, false, false, "", true, true) // Split pos 1 (GoodbyeDPI standard)
-                3 -> Tuple7(1, 2, false, false, "", true, true) // Split pos 2 (GoodbyeDPI standard)
-                else -> Tuple7(1, 2, false, false, "", true, true) // Universal Split pos 2 (100% bypass on all ISPs)
+                0 -> Tuple7(0, 0, false, false, "", true, true) // DESYNC_NONE: Direct clean SOCKS5 with AdBlock inspection
+                2 -> Tuple7(1, 1, false, false, "", true, true) // DESYNC_SPLIT: Fast Split pos 1
+                3 -> Tuple7(5, 2, false, false, "www.google.com", true, true) // DESYNC_FAKE: Fake SNI
+                else -> Tuple7(2, 2, false, false, "", true, true) // DESYNC_DISORDER: Standard Mode 9 (Disorder)
             }
 
             Log.i(TAG, "Creating proxy socket on $ip:$port with mode=$mode, desync=$desyncMethod, http=$desyncHttp, https=$desyncHttps")
@@ -48,7 +48,7 @@ class ByeDpiProxy {
                 desyncMethod = desyncMethod,
                 splitPosition = splitPos,
                 splitAtHost = splitAtHost,
-                fakeTtl = 0,
+                fakeTtl = if (mode == 3) 8 else 0,
                 fakeSni = fakeSni,
                 oobChar = 'a'.code.toByte(),
                 hostMixedCase = false,

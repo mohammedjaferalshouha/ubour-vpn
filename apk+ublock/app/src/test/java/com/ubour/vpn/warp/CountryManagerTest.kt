@@ -48,8 +48,8 @@ class CountryManagerTest {
         )
         assertEquals("priv123", config.privateKey)
         assertEquals("pub123", config.publicKey)
-        assertEquals("162.159.192.1", config.endpointHost)
-        assertEquals(2408, config.endpointPort)
+        assertEquals("162.159.195.1", config.endpointHost)
+        assertEquals(4500, config.endpointPort)
         assertEquals(3, config.reserved.size)
     }
 }

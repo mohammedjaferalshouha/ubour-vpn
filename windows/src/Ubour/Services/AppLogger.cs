@@ -8,7 +8,6 @@ namespace Ubour.Services;
 public static class AppLogger
 {
     private static readonly ConcurrentQueue<string> Logs = new();
-    private static readonly StringBuilder LogBuilder = new();
     private static readonly object LockObj = new();
     public static event Action<string>? OnLogAdded;
 
@@ -26,7 +25,6 @@ public static class AppLogger
         lock (LockObj)
         {
             Logs.Enqueue(line);
-            LogBuilder.AppendLine(line);
             while (Logs.Count > 1000) Logs.TryDequeue(out _);
         }
 
@@ -46,7 +44,6 @@ public static class AppLogger
         lock (LockObj)
         {
             while (Logs.TryDequeue(out _)) { }
-            LogBuilder.Clear();
         }
     }
 
@@ -54,7 +51,7 @@ public static class AppLogger
     {
         lock (LockObj)
         {
-            File.WriteAllText(filePath, LogBuilder.ToString(), Encoding.UTF8);
+            File.WriteAllText(filePath, string.Join(Environment.NewLine, Logs), Encoding.UTF8);
         }
     }
 }

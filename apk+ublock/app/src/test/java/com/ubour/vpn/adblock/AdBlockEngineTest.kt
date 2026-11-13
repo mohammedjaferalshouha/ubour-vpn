@@ -12,6 +12,8 @@ class AdBlockEngineTest {
             listOf(
                 "||doubleclick.net^",
                 "||ads.example.com^",
+                "||adserver.net^$third-party",
+                "example.org##.ad-banner",
                 "0.0.0.0 tracking.com",
                 "@@||whitelist-ads.com^"
             )
@@ -80,7 +82,9 @@ class AdBlockEngineTest {
         assertTrue(AdBlockEngine.isDomainBlocked("doubleclick.net"))
         assertTrue(AdBlockEngine.isDomainBlocked("sub.doubleclick.net"))
         assertTrue(AdBlockEngine.isDomainBlocked("ads.example.com"))
+        assertTrue(AdBlockEngine.isDomainBlocked("adserver.net"))
         assertTrue(AdBlockEngine.isDomainBlocked("tracking.com"))
+        assertFalse(AdBlockEngine.isDomainBlocked("example.org"))
 
         // Whitelisted domain
         assertFalse(AdBlockEngine.isDomainBlocked("whitelist-ads.com"))

@@ -6,8 +6,11 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.net.VpnService
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.util.Log
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.ubour.vpn.R
 import com.ubour.vpn.UbourApplication
@@ -108,12 +111,12 @@ class UbourVpnService : VpnService() {
 
                 when (opMode) {
                     AppOperationMode.WARP_AND_ADBLOCK -> {
-                        // Cloudflare WARP with Sing-box core on port 10809 (Automatic fastest endpoint: 162.159.192.1:2408)
+                        // Cloudflare WARP with Sing-box core on port 10809 (endpoint: 162.159.195.1:4500)
                         try {
                             val warpConfig = WarpManager.getOrRegisterConfig(
                                 context = applicationContext,
-                                targetHost = "162.159.192.1",
-                                targetPort = 2408
+                                targetHost = "162.159.195.1",
+                                targetPort = 4500
                             )
                             if (SingboxManager.startWarp(applicationContext, warpConfig, enableAdBlock = isAdBlockEnabled)) {
                                 delay(400)
@@ -127,14 +130,9 @@ class UbourVpnService : VpnService() {
                             Log.e(TAG, "Failed to start Sing-box WARP: ${e.message}", e)
                         }
 
-                        // Fallback to ByeDPI if Singbox fails
                         if (!useSingbox) {
-                            Log.w(TAG, "Sing-box WARP failed. Falling back to ByeDPI on port 1080")
-                            socksPort = 1080
-                            proxyJob = serviceScope.launch(Dispatchers.IO) {
-                                byeDpiProxy.startProxy(mode = bypassMode, ip = "127.0.0.1", port = 1080)
-                            }
-                            delay(300)
+                            showErrorToast("فشل تشغيل نفق Cloudflare WARP. يرجى التحقق من الشبكة والمحاولة مرة أخرى.")
+                            throw IllegalStateException("Sing-box WARP failed to start")
                         }
                     }
 
@@ -200,7 +198,11 @@ class UbourVpnService : VpnService() {
                         // Custom VLESS Reality server on port 10809
                         val prefs = getSharedPreferences("ubour_settings", Context.MODE_PRIVATE)
                         val vlessUrl = prefs.getString("custom_vless_url", "") ?: ""
-                        if (vlessUrl.isNotBlank() && SingboxManager.startVless(applicationContext, vlessUrl, enableAdBlock = isAdBlockEnabled)) {
+                        if (vlessUrl.isBlank()) {
+                            showErrorToast("يرجى إدخال رابط خادم VLESS في الإعدادات أولاً")
+                            throw IllegalStateException("Custom VLESS URL is empty")
+                        }
+                        if (SingboxManager.startVless(applicationContext, vlessUrl, enableAdBlock = isAdBlockEnabled)) {
                             delay(400)
                             if (SingboxManager.isRunning()) {
                                 socksPort = SingboxManager.SOCKS_PORT
@@ -209,12 +211,8 @@ class UbourVpnService : VpnService() {
                             }
                         }
                         if (!useSingbox) {
-                            Log.w(TAG, "Sing-box VLESS failed. Falling back to ByeDPI on port 1080")
-                            socksPort = 1080
-                            proxyJob = serviceScope.launch(Dispatchers.IO) {
-                                byeDpiProxy.startProxy(mode = bypassMode, ip = "127.0.0.1", port = 1080)
-                            }
-                            delay(300)
+                            showErrorToast("فشل تشغيل خادم VLESS المخصص. تحقق من صحة الرابط واتصال الإنترنت.")
+                            throw IllegalStateException("Sing-box VLESS failed to start")
                         }
                     }
                 }
@@ -423,94 +421,15 @@ class UbourVpnService : VpnService() {
         serviceScope.launch { stopVpn() }
     }
 
+    private fun showErrorToast(message: String) {
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(applicationContext, message, Toast.LENGTH_LONG).show()
+        }
+    }
+
     override fun onRevoke() {
         super.onRevoke()
         serviceScope.launch { stopVpn() }
-    }
-
-    private data class CidrNode(val start: Long, val prefix: Int) {
-        val len: Long = (1L shl (32 - prefix))
-
-        fun overlaps(exStart: Long, exLen: Long): Boolean {
-            return start < (exStart + exLen) && (start + len) > exStart
-        }
-
-        fun inside(exStart: Long, exLen: Long): Boolean {
-            return start >= exStart && (start + len) <= (exStart + exLen)
-        }
-
-        fun ipString(): String {
-            val b1 = (start ushr 24) and 0xFF
-            val b2 = (start ushr 16) and 0xFF
-            val b3 = (start ushr 8) and 0xFF
-            val b4 = start and 0xFF
-            return "$b1.$b2.$b3.$b4"
-        }
-    }
-
-    private fun addRoutesExcludingSubnets(builder: Builder, effectiveDns: String) {
-        val exclusions = mutableListOf(
-            ipToLong("1.1.1.1") to 1L,
-            ipToLong("1.0.0.1") to 1L,
-            ipToLong("8.8.8.8") to 1L,
-            ipToLong("8.8.4.4") to 1L,
-            ipToLong("94.140.14.14") to 1L,
-            ipToLong("94.140.15.15") to 1L,
-            ipToLong("9.9.9.9") to 1L,
-            ipToLong("149.112.112.112") to 1L,
-            ipToLong("162.159.0.0") to 65536L, // 162.159.0.0/16
-            ipToLong("188.114.0.0") to 65536L  // 188.114.0.0/16
-        )
-
-        try {
-            if (effectiveDns.isNotBlank() && effectiveDns.contains(".")) {
-                val dnsLong = ipToLong(effectiveDns)
-                if (exclusions.none { it.first == dnsLong && it.second == 1L }) {
-                    exclusions.add(dnsLong to 1L)
-                }
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Could not parse effective DNS for routing exclusion: $effectiveDns")
-        }
-
-        var tree = listOf(CidrNode(0L, 0))
-        for ((exStart, exLen) in exclusions) {
-            tree = excludeCidr(tree, exStart, exLen)
-        }
-
-        for (node in tree) {
-            try {
-                builder.addRoute(node.ipString(), node.prefix)
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to add route ${node.ipString()}/${node.prefix}: ${e.message}")
-            }
-        }
-    }
-
-    private fun excludeCidr(roots: List<CidrNode>, exStart: Long, exLen: Long): List<CidrNode> {
-        val result = mutableListOf<CidrNode>()
-        for (node in roots) {
-            if (node.inside(exStart, exLen)) {
-                continue
-            }
-            if (node.overlaps(exStart, exLen) && node.prefix < 32) {
-                val halfLen = node.len / 2
-                val left = CidrNode(node.start, node.prefix + 1)
-                val right = CidrNode(node.start + halfLen, node.prefix + 1)
-                result.addAll(excludeCidr(listOf(left, right), exStart, exLen))
-            } else {
-                result.add(node)
-            }
-        }
-        return result
-    }
-
-    private fun ipToLong(ip: String): Long {
-        val parts = ip.split(".")
-        return ((parts[0].toLong() and 0xFF) shl 24) or
-               ((parts[1].toLong() and 0xFF) shl 16) or
-               ((parts[2].toLong() and 0xFF) shl 8) or
-               (parts[3].toLong() and 0xFF)
     }
 
     companion object {

@@ -143,12 +143,27 @@ object AdBlockEngine {
     }
 
     private fun parseRule(rule: String, blockedList: ArrayList<Long>, whiteList: ArrayList<Long>) {
-        val cleanRule = rule.trim()
+        var cleanRule = rule.trim()
+        if (cleanRule.isEmpty() || cleanRule.startsWith("!") || cleanRule.startsWith("#") || cleanRule.startsWith("[")) {
+            return
+        }
+
+        // Skip cosmetic/element-hiding rules
+        if (cleanRule.contains("##") || cleanRule.contains("#@#") || cleanRule.contains("#?#") || cleanRule.contains("#$#")) {
+            return
+        }
+
+        // Strip AdBlock options suffix ($third-party, $script, etc.)
+        val dollarIdx = cleanRule.indexOf('$')
+        if (dollarIdx != -1) {
+            cleanRule = cleanRule.substring(0, dollarIdx).trim()
+            if (cleanRule.isEmpty()) return
+        }
 
         // 1. Whitelist rule: @@||domain^
         if (cleanRule.startsWith("@@||") || cleanRule.startsWith("@@")) {
-            val domain = cleanRule.removePrefix("@@||").removePrefix("@@").removeSuffix("^").trim()
-            if (domain.isNotEmpty()) {
+            val domain = cleanRule.removePrefix("@@||").removePrefix("@@").removeSuffix("^").trim().trimEnd('/')
+            if (domain.isNotEmpty() && !domain.contains(" ") && !domain.contains("/")) {
                 whiteList.add(hashDomain(domain.lowercase()))
             }
             return
@@ -156,8 +171,8 @@ object AdBlockEngine {
 
         // 2. uBlock / AdGuard syntax: ||domain.com^
         if (cleanRule.startsWith("||")) {
-            val domain = cleanRule.removePrefix("||").removeSuffix("^").trim()
-            if (domain.isNotEmpty()) {
+            val domain = cleanRule.removePrefix("||").removeSuffix("^").trim().trimEnd('/')
+            if (domain.isNotEmpty() && !domain.contains(" ") && !domain.contains("/") && !domain.contains("*")) {
                 blockedList.add(hashDomain(domain.lowercase()))
             }
             return
@@ -176,8 +191,8 @@ object AdBlockEngine {
         }
 
         // 4. Plain domain
-        val domain = cleanRule.removeSuffix("^").trim()
-        if (domain.isNotEmpty() && !domain.contains(" ") && !domain.contains("/")) {
+        val domain = cleanRule.removeSuffix("^").trim().trimEnd('/')
+        if (domain.isNotEmpty() && !domain.contains(" ") && !domain.contains("/") && !domain.contains("*")) {
             blockedList.add(hashDomain(domain.lowercase()))
         }
     }

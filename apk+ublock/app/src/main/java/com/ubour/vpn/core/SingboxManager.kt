@@ -151,6 +151,7 @@ object SingboxManager {
         val warpEndpoint = JSONObject().apply {
             put("type", "wireguard")
             put("tag", "warp-ep")
+            put("detour", "direct-warp")
             put("address", addrs)
             put("private_key", warp.privateKey)
             put("peers", JSONArray().apply {
@@ -173,7 +174,6 @@ object SingboxManager {
                         put("type", "udp")
                         put("server", "127.0.0.1")
                         put("server_port", 5353)
-                        put("detour", "direct")
                     })
                 })
                 put("final", "dns-filter")
@@ -187,6 +187,11 @@ object SingboxManager {
                 })
             })
             put("outbounds", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("type", "direct")
+                    put("tag", "direct-warp")
+                    put("udp_fragment", true)
+                })
                 put(JSONObject().apply {
                     put("type", "direct")
                     put("tag", "direct")
@@ -215,7 +220,6 @@ object SingboxManager {
                         put("type", "udp")
                         put("server", "127.0.0.1")
                         put("server_port", 5353)
-                        put("detour", "direct")
                     })
                 })
                 put("final", "dns-filter")
@@ -264,7 +268,6 @@ object SingboxManager {
                         put("type", "udp")
                         put("server", "127.0.0.1")
                         put("server_port", 5353)
-                        put("detour", "direct")
                     })
                 })
                 put("final", "dns-filter")
@@ -314,7 +317,6 @@ object SingboxManager {
                         put("type", "udp")
                         put("server", "127.0.0.1")
                         put("server_port", 5353)
-                        put("detour", "direct")
                     })
                 })
                 put("final", "dns-filter")
@@ -362,7 +364,9 @@ object SingboxManager {
     private fun generateVlessConfig(context: Context, vlessUrl: String, enableAdBlock: Boolean = true): File? {
         try {
             if (!vlessUrl.startsWith("vless://", ignoreCase = true)) return null
-            val raw = vlessUrl.substring(8)
+            val rawWithFragment = vlessUrl.substring(8)
+            val hashIdx = rawWithFragment.indexOf('#')
+            val raw = if (hashIdx != -1) rawWithFragment.substring(0, hashIdx) else rawWithFragment
             val atIdx = raw.indexOf('@')
             val colonIdx = raw.indexOf(':', atIdx)
             val qIdx = raw.indexOf('?', colonIdx)
@@ -426,7 +430,6 @@ object SingboxManager {
                             put("type", "udp")
                             put("server", "127.0.0.1")
                             put("server_port", 5353)
-                            put("detour", "direct")
                         })
                     })
                     put("final", "dns-filter")
