@@ -153,9 +153,14 @@ object AdBlockEngine {
             return
         }
 
-        // Strip AdBlock options suffix ($third-party, $script, etc.)
+        // Skip HTTP/browser-specific rules with $ options (e.g. $third-party, $removeparam, $csp, $badfilter)
+        // because stripping them turns URL/content rules into full DNS domain blocks.
         val dollarIdx = cleanRule.indexOf('$')
         if (dollarIdx != -1) {
+            val options = cleanRule.substring(dollarIdx + 1).trim()
+            if (!options.equals("important", ignoreCase = true)) {
+                return
+            }
             cleanRule = cleanRule.substring(0, dollarIdx).trim()
             if (cleanRule.isEmpty()) return
         }

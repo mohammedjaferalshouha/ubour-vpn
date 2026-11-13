@@ -172,10 +172,16 @@ public class AdBlockEngine
             rule = rule.Substring(8);
         }
 
-        // Remove options starting with $ (e.g. $third-party,image)
+        // Skip HTTP/browser-specific rules with $ options (e.g. $third-party, $removeparam, $csp, $badfilter)
+        // because stripping them turns URL/content rules into full DNS domain blocks.
         int dollarIdx = rule.IndexOf('$');
         if (dollarIdx != -1)
         {
+            string options = rule.Substring(dollarIdx + 1).Trim();
+            if (!string.Equals(options, "important", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
             rule = rule.Substring(0, dollarIdx);
         }
 
