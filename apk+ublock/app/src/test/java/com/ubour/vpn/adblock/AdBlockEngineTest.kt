@@ -12,7 +12,7 @@ class AdBlockEngineTest {
             listOf(
                 "||doubleclick.net^",
                 "||ads.example.com^",
-                "||adserver.net^$third-party",
+                "||adserver.net^\$third-party",
                 "example.org##.ad-banner",
                 "0.0.0.0 tracking.com",
                 "@@||whitelist-ads.com^"
