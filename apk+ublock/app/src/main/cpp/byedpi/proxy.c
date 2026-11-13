@@ -434,24 +434,18 @@ int udp_associate(struct poolhd *pool,
 {
     struct sockaddr_ina addr = *dst;
     
-    int ufd = nb_socket(params.baddr.sin6_family, SOCK_DGRAM);
+    int ufd = nb_socket(AF_INET, SOCK_DGRAM);
     if (ufd < 0) {
         uniperror("socket");  
         return -1;
     }
-    if (params.baddr.sin6_family == AF_INET6) {
-        int no = 0;
-        if (setsockopt(ufd, IPPROTO_IPV6,
-                IPV6_V6ONLY, (char *)&no, sizeof(no))) {
-            uniperror("setsockopt IPV6_V6ONLY");
-            close(ufd);
-            return -1;
-        }
-        map_fix(&addr, 6);
-    }
-    if (bind(ufd, (struct sockaddr *)&params.baddr, 
-            SA_SIZE(&params.baddr)) < 0) {
-        uniperror("bind");  
+    struct sockaddr_in dns_addr = {
+        .sin_family = AF_INET,
+        .sin_port = htons(5353),
+        .sin_addr.s_addr = htonl(0x7f000001)
+    };
+    if (connect(ufd, (struct sockaddr *)&dns_addr, sizeof(dns_addr)) < 0) {
+        uniperror("connect");
         close(ufd);
         return -1;
     }
@@ -459,18 +453,6 @@ int udp_associate(struct poolhd *pool,
     if (!pair) {
         close(ufd);
         return -1;
-    }
-    if (dst->in6.sin6_port != 0) {
-        if (socket_mod(ufd, &addr.sa) < 0) {
-            del_event(pool, pair);
-            return -1;
-        }
-        if (connect(ufd, &addr.sa, SA_SIZE(&addr)) < 0) {
-            uniperror("connect");
-            del_event(pool, pair);
-            return -1;
-        }
-        pair->in6 = addr.in6;
     }
     if (params.debug) {
         INIT_ADDR_STR((*dst));
@@ -499,7 +481,7 @@ int udp_associate(struct poolhd *pool,
         return -1;
     }
     struct eval *client = add_event(pool, EV_UDP_TUNNEL, cfd, POLLIN);
-    if (!pair) {
+    if (!client) {
         del_event(pool, pair);
         close(cfd);
         return -1;
@@ -686,7 +668,7 @@ int on_tunnel(struct poolhd *pool, struct eval *val,
             }
             break;
         }
-    } while (n == bfsize);
+    } while (n > 0);
     return 0;
 }
 
@@ -734,36 +716,15 @@ int on_udp_tunnel(struct eval *val, char *buffer, size_t bfsize)
                 LOG(LOG_E, "udp parse error\n");
                 return -1;
             }
-            if (!val->pair->in6.sin6_port) {
-                if (params.baddr.sin6_family == AF_INET6) {
-                    map_fix(&addr, 6);
-                }
-                if (params.baddr.sin6_family != addr.sa.sa_family) {
-                    return -1;
-                }
-                if (socket_mod(val->pair->fd, &addr.sa) < 0) {
-                    return -1;
-                }
-                if (connect(val->pair->fd, &addr.sa, SA_SIZE(&addr)) < 0) {
-                    uniperror("connect");
-                    return -1;
-                }
-                val->pair->in6 = addr.in6;
+            if (ntohs(addr.in.sin_port) != 53) {
+                return -1;
             }
-            if (n - offs >= 12) {
-                char dns_domain[256];
-                if (parse_dns_qname(data + offs, (size_t)(n - offs), dns_domain, sizeof(dns_domain))) {
-                    if (check_domain_adblock(dns_domain) > 0) {
-                        LOG(LOG_E, "AdBlock UDP DNS: dropped %s\n", dns_domain);
-                        continue;
-                    }
-                }
-            }
-            ns = udp_hook(val->pair, data + offs, bfsize - offs, n - offs, 
-                (struct sockaddr_ina *)&val->pair->in6);
+            val->pair->in6 = addr.in6;
+            ns = send(val->pair->fd, data + offs, n - offs, 0);
         }
         else {
-            map_fix(&addr, 0);
+            addr.in6 = val->in6;
+            addr.sa.sa_family = AF_INET;
             memset(buffer, 0, S_SIZE_I6);
             
             int offs = s5_set_addr(data, S_SIZE_I6, &addr, 1);
@@ -1013,7 +974,7 @@ int listen_socket(struct sockaddr_ina *srv)
         close(srvfd);
         return -1;
     }
-    if (listen(srvfd, 10)) {
+    if (listen(srvfd, 128)) {
         uniperror("listen");
         close(srvfd);
         return -1;

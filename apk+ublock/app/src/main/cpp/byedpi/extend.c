@@ -427,7 +427,7 @@ ssize_t udp_hook(struct eval *val,
         }
     }
     if (m >= params.dp_count) {
-        return -1;
+        return send(val->fd, buffer, n, 0);
     }   
     return desync_udp(val->fd, buffer, bfsize, n, &dst->sa, m);
 }

@@ -30,15 +30,15 @@ class ByeDpiProxy {
                 0 -> Tuple7(0, 0, false, false, "", true, true) // DESYNC_NONE: Direct clean SOCKS5 with AdBlock inspection
                 2 -> Tuple7(1, 1, false, false, "", true, true) // DESYNC_SPLIT: Fast Split pos 1
                 3 -> Tuple7(5, 2, false, false, "www.google.com", true, true) // DESYNC_FAKE: Fake SNI
-                else -> Tuple7(2, 2, false, false, "", true, true) // DESYNC_DISORDER: Standard Mode 9 (Disorder)
+                else -> Tuple7(1, 2, false, false, "", true, true) // DESYNC_SPLIT: Standard Mode 1 (Split at pos 2, high throughput)
             }
 
             Log.i(TAG, "Creating proxy socket on $ip:$port with mode=$mode, desync=$desyncMethod, http=$desyncHttp, https=$desyncHttps")
             val created = jniCreateSocket(
                 ip = ip,
                 port = port,
-                maxConnections = 512,
-                bufferSize = 16384,
+                maxConnections = 1024,
+                bufferSize = 65536,
                 defaultTtl = 0,
                 customTtl = false,
                 noDomain = false,

@@ -137,23 +137,12 @@ class UbourVpnService : VpnService() {
                     }
 
                     AppOperationMode.VPN_AND_ADBLOCK -> {
-                        // Direct ByeDPI DPI bypass on port 1080 + Sing-box DNS interceptor on port 10809
+                        // Direct ByeDPI DPI bypass on port 1080 + DnsFilterServer on port 5353
+                        socksPort = 1080
                         proxyJob = serviceScope.launch(Dispatchers.IO) {
                             byeDpiProxy.startProxy(mode = bypassMode, ip = "127.0.0.1", port = 1080)
                         }
                         delay(300)
-
-                        if (isAdBlockEnabled && SingboxManager.startVpnAndAdBlock(applicationContext, byedpiPort = 1080)) {
-                            delay(300)
-                            if (SingboxManager.isRunning()) {
-                                socksPort = SingboxManager.SOCKS_PORT
-                                useSingbox = true
-                                Log.i(TAG, "Sing-box VPN+AdBlock dispatcher running on port $socksPort")
-                            }
-                        }
-                        if (!useSingbox) {
-                            socksPort = 1080
-                        }
                     }
 
                     AppOperationMode.ADBLOCK_ONLY -> {
@@ -176,22 +165,12 @@ class UbourVpnService : VpnService() {
                     }
 
                     AppOperationMode.VPN_ONLY -> {
-                        // Direct ByeDPI DPI bypass with Singbox dispatcher for reliable UDP & DNS
+                        // Direct ByeDPI DPI bypass on port 1080 + DnsFilterServer pass-through on port 5353
+                        socksPort = 1080
                         proxyJob = serviceScope.launch(Dispatchers.IO) {
                             byeDpiProxy.startProxy(mode = bypassMode, ip = "127.0.0.1", port = 1080)
                         }
                         delay(300)
-                        if (SingboxManager.startVpnOnly(applicationContext, byedpiPort = 1080)) {
-                            delay(300)
-                            if (SingboxManager.isRunning()) {
-                                socksPort = SingboxManager.SOCKS_PORT
-                                useSingbox = true
-                                Log.i(TAG, "Sing-box VPN Only dispatcher running on port $socksPort")
-                            }
-                        }
-                        if (!useSingbox) {
-                            socksPort = 1080
-                        }
                     }
 
                     AppOperationMode.CUSTOM_VLESS -> {
@@ -218,8 +197,8 @@ class UbourVpnService : VpnService() {
                 }
 
                 // 3. Prepare YAML config for hev-socks5-tunnel
-                val udpMode = if (socksPort == SingboxManager.SOCKS_PORT) "'udp'" else "'none'"
-                val tunMtu = if (opMode == AppOperationMode.WARP_AND_ADBLOCK) 1500 else 9000
+                val udpMode = "'udp'"
+                val tunMtu = if (opMode == AppOperationMode.WARP_AND_ADBLOCK) 1400 else 9000
                 val tun2socksConfig = """
                 tunnel:
                   mtu: $tunMtu

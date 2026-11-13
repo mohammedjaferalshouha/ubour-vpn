@@ -171,31 +171,21 @@ public static class WarpManager
 
         var results = new List<WarpEndpointItem>();
 
-        // 2. Prioritize resilient ports (4500, 500, 1701) and verify UDP socket reachability
+        // 2. Prioritize resilient ports (4500, 500, 1701) for the fastest IPs
         var priorityPorts = new[] { 4500, 500, 1701 };
-        var probeTasks = new List<Task<(string Host, int Port, long Latency, bool Reachable)>>();
-
         foreach (var ip in sortedIps)
         {
             long lat = ipLatencies.TryGetValue(ip, out var l) ? l : 0;
             foreach (var port in priorityPorts)
             {
-                probeTasks.Add(ProbeUdpPortAsync(ip, port, lat));
+                results.Add(new WarpEndpointItem
+                {
+                    Host = ip,
+                    Port = port,
+                    LatencyMs = lat,
+                    Note = GetPortNote(port)
+                });
             }
-        }
-
-        var probeResults = await Task.WhenAll(probeTasks);
-        foreach (var probe in probeResults
-            .OrderByDescending(p => p.Reachable)
-            .ThenBy(p => p.Latency > 0 ? p.Latency : long.MaxValue))
-        {
-            results.Add(new WarpEndpointItem
-            {
-                Host = probe.Host,
-                Port = probe.Port,
-                LatencyMs = probe.Latency,
-                Note = probe.Reachable ? GetPortNote(probe.Port) : $"{GetPortNote(probe.Port)} (محجوب/غير متاح)"
-            });
         }
 
         // 3. Add other ports for top IPs
@@ -218,35 +208,6 @@ public static class WarpManager
         }
 
         return results;
-    }
-
-    private static async Task<(string Host, int Port, long Latency, bool Reachable)> ProbeUdpPortAsync(string ip, int port, long icmpLatency)
-    {
-        try
-        {
-            using var udp = new System.Net.Sockets.UdpClient();
-            udp.Client.SendTimeout = 500;
-            udp.Client.ReceiveTimeout = 500;
-            udp.Connect(ip, port);
-            // Send a minimal WireGuard-sized probe and check briefly for immediate ICMP Port Unreachable
-            var probeBytes = new byte[4];
-            await udp.SendAsync(probeBytes, probeBytes.Length);
-            await Task.Delay(150);
-            if (udp.Available > 0)
-            {
-                var remote = new System.Net.IPEndPoint(System.Net.IPAddress.Any, 0);
-                udp.Receive(ref remote);
-            }
-            return (ip, port, icmpLatency, true);
-        }
-        catch (System.Net.Sockets.SocketException)
-        {
-            return (ip, port, icmpLatency, false);
-        }
-        catch
-        {
-            return (ip, port, icmpLatency, true);
-        }
     }
 
     public static async Task<WarpConfig> GetOrRegisterConfigAsync(string? preferredHost = null, int? preferredPort = null, string? baseDir = null)
