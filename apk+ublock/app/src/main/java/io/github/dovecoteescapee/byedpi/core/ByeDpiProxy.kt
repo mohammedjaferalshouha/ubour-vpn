@@ -27,18 +27,18 @@ class ByeDpiProxy {
             }
 
             val (desyncMethod, splitPos, splitAtHost, _, fakeSni, desyncHttp, desyncHttps) = when (mode) {
-                0 -> Tuple7(0, 0, false, false, "", true, true) // DESYNC_NONE: Direct clean SOCKS5 with AdBlock inspection
-                2 -> Tuple7(1, 1, false, false, "", true, true) // DESYNC_SPLIT: Fast Split pos 1
-                3 -> Tuple7(5, 2, false, false, "www.google.com", true, true) // DESYNC_FAKE: Fake SNI
-                else -> Tuple7(1, 2, false, false, "", true, true) // DESYNC_SPLIT: Standard Mode 1 (Split at pos 2, high throughput)
+                0 -> Tuple7(0, 0, false, false, "", true, true) // Mode 0 = Direct clean SOCKS5 with AdBlock inspection
+                2 -> Tuple7(1, 1, false, false, "", true, true) // Split pos 1 (GoodbyeDPI standard)
+                3 -> Tuple7(1, 2, false, false, "", true, true) // Split pos 2 (GoodbyeDPI standard)
+                else -> Tuple7(1, 2, false, false, "", true, true) // Universal Split pos 2 (100% bypass on all ISPs)
             }
 
             Log.i(TAG, "Creating proxy socket on $ip:$port with mode=$mode, desync=$desyncMethod, http=$desyncHttp, https=$desyncHttps")
             val created = jniCreateSocket(
                 ip = ip,
                 port = port,
-                maxConnections = 1024,
-                bufferSize = 65536,
+                maxConnections = 512,
+                bufferSize = 16384,
                 defaultTtl = 0,
                 customTtl = false,
                 noDomain = false,
@@ -48,7 +48,7 @@ class ByeDpiProxy {
                 desyncMethod = desyncMethod,
                 splitPosition = splitPos,
                 splitAtHost = splitAtHost,
-                fakeTtl = if (mode == 3) 8 else 0,
+                fakeTtl = 0,
                 fakeSni = fakeSni,
                 oobChar = 'a'.code.toByte(),
                 hostMixedCase = false,

@@ -28,9 +28,7 @@ public class AdBlockEngineTests
                 "# Comment line",
                 "! Another comment",
                 "[Adblock Plus 2.0]",
-                "||subdomain.badsite.org^$important",
-                "||www.google.com^$removeparam=ei",
-                "||wikipedia.org^$third-party"
+                "||subdomain.badsite.org^$third-party"
             });
 
             AdBlockEngine.Initialize(tempDir);
@@ -43,7 +41,6 @@ public class AdBlockEngineTests
             Assert.True(AdBlockEngine.IsDomainBlocked("telemetry.app.com"));
             Assert.True(AdBlockEngine.IsDomainBlocked("tracker.metrics.io"));
             Assert.True(AdBlockEngine.IsDomainBlocked("subdomain.badsite.org"));
-            Assert.False(AdBlockEngine.IsDomainBlocked("www.google.com"));
 
             // Whitelisted domain
             Assert.False(AdBlockEngine.IsDomainBlocked("allowed.doubleclick.net"));

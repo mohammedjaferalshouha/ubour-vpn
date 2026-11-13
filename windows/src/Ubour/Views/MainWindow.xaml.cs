@@ -121,9 +121,6 @@ public partial class MainWindow : Window
         TxtModeVpnAdBlockTitle.Text = LocalizationManager.Get("ModeVpnAdBlock", lang);
         TxtModeVpnAdBlockDesc.Text = LocalizationManager.Get("ModeVpnAdBlockDesc", lang);
 
-        TxtModeVlessTitle.Text = LocalizationManager.Get("ModeVless", lang);
-        TxtModeVlessDesc.Text = LocalizationManager.Get("ModeVlessDesc", lang);
-
         LblStatDuration.Text = LocalizationManager.Get("StatDuration", lang);
         LblStatAds.Text = LocalizationManager.Get("StatBlockedAds", lang);
         LblStatTrackers.Text = LocalizationManager.Get("StatBlockedTrackers", lang);
@@ -227,7 +224,6 @@ public partial class MainWindow : Window
         CardModeAdBlock.Opacity = enabled ? 1.0 : 0.6;
         CardModeVpnOnly.Opacity = enabled ? 1.0 : 0.6;
         CardModeVpnAdBlock.Opacity = enabled ? 1.0 : 0.6;
-        CardModeVless.Opacity = enabled ? 1.0 : 0.6;
         WarpSubModeContainer.IsEnabled = enabled;
         DpiSubModeContainer.IsEnabled = enabled;
     }
@@ -241,7 +237,6 @@ public partial class MainWindow : Window
         RbModeAdBlock.IsChecked = (mode == AppOperationMode.ADBLOCK_ONLY);
         RbModeVpnOnly.IsChecked = (mode == AppOperationMode.VPN_ONLY);
         RbModeVpnAdBlock.IsChecked = (mode == AppOperationMode.VPN_AND_ADBLOCK);
-        RbModeVless.IsChecked = (mode == AppOperationMode.CUSTOM_VLESS);
 
         var defaultBorder = (Brush)FindResource("CardBorderBrush");
         var activeBorder = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"));
@@ -250,7 +245,6 @@ public partial class MainWindow : Window
         CardModeAdBlock.BorderBrush = (mode == AppOperationMode.ADBLOCK_ONLY) ? activeBorder : defaultBorder;
         CardModeVpnOnly.BorderBrush = (mode == AppOperationMode.VPN_ONLY) ? activeBorder : defaultBorder;
         CardModeVpnAdBlock.BorderBrush = (mode == AppOperationMode.VPN_AND_ADBLOCK) ? activeBorder : defaultBorder;
-        CardModeVless.BorderBrush = (mode == AppOperationMode.CUSTOM_VLESS) ? activeBorder : defaultBorder;
 
         WarpSubModeContainer.Visibility = (mode == AppOperationMode.WARP_AND_ADBLOCK)
             ? Visibility.Visible

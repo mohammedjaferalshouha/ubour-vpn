@@ -6,7 +6,6 @@ import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
 import java.nio.ByteBuffer
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
 class DnsFilterServer(
@@ -16,13 +15,10 @@ class DnsFilterServer(
     private val socketProtector: ((DatagramSocket) -> Boolean)? = null,
     private val enableFiltering: Boolean = true
 ) {
-    private data class CachedDnsEntry(val response: ByteArray, val expiresAtMs: Long)
-
     private val isRunning = AtomicBoolean(false)
     private var serverSocket: DatagramSocket? = null
     private var serverJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val dnsCache = ConcurrentHashMap<String, CachedDnsEntry>()
 
     fun setUpstreamDns(dns: String) {
         upstreamDns = dns
@@ -64,66 +60,35 @@ class DnsFilterServer(
 
     private fun handleDnsQuery(data: ByteArray, clientAddress: InetAddress, clientPort: Int) {
         try {
-            val qname = parseQName(data)
-            if (enableFiltering && qname != null && AdBlockEngine.isDomainBlocked(qname)) {
-                Log.d(TAG, "🚫 Blocked DNS query for: $qname")
-                val blockedResponse = createBlockedResponse(data)
-                sendPacket(blockedResponse, clientAddress, clientPort)
-                return
-            }
-
-            val qtype = parseQType(data)
-            val cacheKey = if (qname != null && qtype > 0) "${qname.lowercase()}:$qtype" else null
-            if (cacheKey != null) {
-                val cached = dnsCache[cacheKey]
-                if (cached != null && System.currentTimeMillis() < cached.expiresAtMs && cached.response.size >= 2 && data.size >= 2) {
-                    val reply = cached.response.copyOf()
-                    reply[0] = data[0]
-                    reply[1] = data[1]
-                    sendPacket(reply, clientAddress, clientPort)
+            if (enableFiltering) {
+                val qname = parseQName(data)
+                if (qname != null && AdBlockEngine.isDomainBlocked(qname)) {
+                    Log.d(TAG, "🚫 Blocked DNS query for: $qname")
+                    val blockedResponse = createBlockedResponse(data)
+                    sendPacket(blockedResponse, clientAddress, clientPort)
                     return
                 }
             }
 
             // Forward to upstream DNS
-            val responseData = DatagramSocket().use { upstreamSocket ->
-                socketProtector?.invoke(upstreamSocket)
-                upstreamSocket.soTimeout = 2000
-                val upstreamPacket = DatagramPacket(data, data.size, InetAddress.getByName(upstreamDns), upstreamPort)
-                upstreamSocket.send(upstreamPacket)
-
-                val responseBuffer = ByteArray(4096)
-                val responsePacket = DatagramPacket(responseBuffer, responseBuffer.size)
-                upstreamSocket.receive(responsePacket)
-                responsePacket.data.copyOf(responsePacket.length)
+            val upstreamSocket = DatagramSocket().apply {
+                socketProtector?.invoke(this)
+                soTimeout = 3000
             }
+            val upstreamPacket = DatagramPacket(data, data.size, InetAddress.getByName(upstreamDns), upstreamPort)
+            upstreamSocket.send(upstreamPacket)
 
-            if (cacheKey != null && responseData.size >= 12) {
-                if (dnsCache.size > 1024) dnsCache.clear()
-                dnsCache[cacheKey] = CachedDnsEntry(responseData.copyOf(), System.currentTimeMillis() + 60_000L)
-            }
+            val responseBuffer = ByteArray(4096)
+            val responsePacket = DatagramPacket(responseBuffer, responseBuffer.size)
+            upstreamSocket.receive(responsePacket)
+            upstreamSocket.close()
 
+            val responseData = responsePacket.data.copyOf(responsePacket.length)
             sendPacket(responseData, clientAddress, clientPort)
 
         } catch (e: Exception) {
             Log.w(TAG, "Error handling DNS query: ${e.message}")
         }
-    }
-
-    private fun parseQType(query: ByteArray): Int {
-        if (query.size < 12) return -1
-        var offset = 12
-        while (offset < query.size) {
-            val len = query[offset].toInt() and 0xFF
-            if (len == 0) {
-                offset += 1
-                break
-            }
-            if (len > 63) return -1
-            offset += len + 1
-        }
-        if (offset + 2 > query.size) return -1
-        return ((query[offset].toInt() and 0xFF) shl 8) or (query[offset + 1].toInt() and 0xFF)
     }
 
     private fun sendPacket(data: ByteArray, address: InetAddress, port: Int) {
@@ -240,14 +205,12 @@ class DnsFilterServer(
         isRunning.set(false)
         serverJob?.cancel()
         serverJob = null
-        scope.coroutineContext.cancelChildren()
         try {
             serverSocket?.close()
         } catch (e: Exception) {
             // Ignore
         }
         serverSocket = null
-        dnsCache.clear()
         Log.i(TAG, "DNS Filter Server stopped")
     }
 

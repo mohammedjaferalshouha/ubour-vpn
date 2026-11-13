@@ -11,11 +11,7 @@ class AdBlockEngineTest {
         AdBlockEngine.loadRulesForTesting(
             listOf(
                 "||doubleclick.net^",
-                "||ads.example.com^\$important",
-                "||www.google.com^\$removeparam=ei",
-                "||cloudflare.com^\$third-party",
-                "||wikipedia.org^\$csp=script-src",
-                "example.org##.ad-banner",
+                "||ads.example.com^",
                 "0.0.0.0 tracking.com",
                 "@@||whitelist-ads.com^"
             )
@@ -84,11 +80,7 @@ class AdBlockEngineTest {
         assertTrue(AdBlockEngine.isDomainBlocked("doubleclick.net"))
         assertTrue(AdBlockEngine.isDomainBlocked("sub.doubleclick.net"))
         assertTrue(AdBlockEngine.isDomainBlocked("ads.example.com"))
-        assertFalse(AdBlockEngine.isDomainBlocked("www.google.com"))
-        assertFalse(AdBlockEngine.isDomainBlocked("cloudflare.com"))
-        assertFalse(AdBlockEngine.isDomainBlocked("wikipedia.org"))
         assertTrue(AdBlockEngine.isDomainBlocked("tracking.com"))
-        assertFalse(AdBlockEngine.isDomainBlocked("example.org"))
 
         // Whitelisted domain
         assertFalse(AdBlockEngine.isDomainBlocked("whitelist-ads.com"))

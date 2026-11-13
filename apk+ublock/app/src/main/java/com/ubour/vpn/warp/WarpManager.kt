@@ -78,8 +78,8 @@ data class WarpConfig(
     val privateKey: String,
     val publicKey: String,
     val peerPublicKey: String = "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
-    val endpointHost: String = "162.159.195.1",
-    val endpointPort: Int = 4500,
+    val endpointHost: String = "162.159.192.1",
+    val endpointPort: Int = 2408,
     val localIpv4: String = "172.16.0.2/32",
     val localIpv6: String? = null,
     val reserved: List<Int> = listOf(122, 15, 67)
@@ -104,17 +104,16 @@ object WarpManager {
 
     suspend fun getOrRegisterConfig(
         context: Context,
-        targetHost: String = "162.159.195.1",
-        targetPort: Int = 4500
+        targetHost: String = "162.159.192.1",
+        targetPort: Int = 2408
     ): WarpConfig = withContext(Dispatchers.IO) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val savedPriv = prefs.getString(KEY_PRIVATE, null)
         val savedIpv4 = prefs.getString(KEY_IPV4, null)
         val savedReservedStr = prefs.getString(KEY_RESERVED, null)
 
-        val hostToUse = if (targetHost.isNotBlank()) targetHost else (prefs.getString(KEY_HOST, "162.159.195.1") ?: "162.159.195.1")
-        val rawPort = if (targetPort > 0) targetPort else prefs.getInt(KEY_PORT, 4500)
-        val portToUse = if (rawPort == 2408) 4500 else rawPort
+        val hostToUse = if (targetHost.isNotBlank()) targetHost else (prefs.getString(KEY_HOST, "162.159.192.1") ?: "162.159.192.1")
+        val portToUse = if (targetPort > 0) targetPort else prefs.getInt(KEY_PORT, 2408)
 
         if (!savedPriv.isNullOrBlank() && !savedIpv4.isNullOrBlank() && !savedReservedStr.isNullOrBlank()) {
             val reservedList = savedReservedStr.split(",").mapNotNull { it.toIntOrNull() }

@@ -55,12 +55,9 @@ public class AdBlockEngine
     };
 
     public static int TotalRules => _blockedHashes.Length;
-    private static long _blockedAdsCount = 0;
-    private static long _blockedTrackersCount = 0;
-    private static long _totalQueries = 0;
-    public static long BlockedAdsCount => Interlocked.Read(ref _blockedAdsCount);
-    public static long BlockedTrackersCount => Interlocked.Read(ref _blockedTrackersCount);
-    public static long TotalQueries => Interlocked.Read(ref _totalQueries);
+    public static long BlockedAdsCount { get; private set; } = 0;
+    public static long BlockedTrackersCount { get; private set; } = 0;
+    public static long TotalQueries { get; private set; } = 0;
 
     private UdpClient? _udpServer;
     private UdpClient? _udpServerV6;
@@ -69,14 +66,13 @@ public class AdBlockEngine
     private CancellationTokenSource? _cts;
     private string _upstreamDns = "1.1.1.1";
     private string _secondaryDns = "1.0.0.1";
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (byte[] Response, long ExpiresAtMs)> _dnsCache = new();
     public bool IsRunning { get; private set; } = false;
 
     public static void ResetStats()
     {
-        Interlocked.Exchange(ref _blockedAdsCount, 0);
-        Interlocked.Exchange(ref _blockedTrackersCount, 0);
-        Interlocked.Exchange(ref _totalQueries, 0);
+        BlockedAdsCount = 0;
+        BlockedTrackersCount = 0;
+        TotalQueries = 0;
     }
 
     private static long HashDomain(string domain)
@@ -173,16 +169,10 @@ public class AdBlockEngine
             rule = rule.Substring(8);
         }
 
-        // Skip HTTP/browser-specific rules with $ options (e.g. $third-party, $removeparam, $csp, $badfilter)
-        // because stripping them turns URL/content rules into full DNS domain blocks.
+        // Remove options starting with $ (e.g. $third-party,image)
         int dollarIdx = rule.IndexOf('$');
         if (dollarIdx != -1)
         {
-            string options = rule.Substring(dollarIdx + 1).Trim();
-            if (!string.Equals(options, "important", StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
             rule = rule.Substring(0, dollarIdx);
         }
 
@@ -234,7 +224,7 @@ public class AdBlockEngine
 
     public static bool IsDomainBlocked(string rawDomain)
     {
-        Interlocked.Increment(ref _totalQueries);
+        TotalQueries++;
         string domain = rawDomain.Trim().TrimEnd('.').ToLowerInvariant();
         if (string.IsNullOrEmpty(domain)) return false;
 
@@ -286,11 +276,11 @@ public class AdBlockEngine
     {
         if (domain.Contains("track") || domain.Contains("analytics") || domain.Contains("metric") || domain.Contains("telemetry") || domain.Contains("adjust") || domain.Contains("appsflyer"))
         {
-            Interlocked.Increment(ref _blockedTrackersCount);
+            BlockedTrackersCount++;
         }
         else
         {
-            Interlocked.Increment(ref _blockedAdsCount);
+            BlockedAdsCount++;
         }
     }
 
@@ -413,35 +403,17 @@ public class AdBlockEngine
                 return;
             }
 
-            int qtype = ParseQType(query);
-            string? cacheKey = (qname != null && qtype > 0) ? $"{qname.ToLowerInvariant()}:{qtype}" : null;
-            if (cacheKey != null && _dnsCache.TryGetValue(cacheKey, out var cached)
-                && Environment.TickCount64 < cached.ExpiresAtMs
-                && cached.Response.Length >= 2 && query.Length >= 2)
-            {
-                byte[] reply = (byte[])cached.Response.Clone();
-                reply[0] = query[0];
-                reply[1] = query[1];
-                await server.SendAsync(reply, reply.Length, clientEp);
-                return;
-            }
-
-            // Primary upstream with 2000ms timeout
-            byte[]? upstreamResp = await QueryUpstreamUdpAsync(query, _upstreamDns, 2000, ct);
+            // Primary upstream with 2500ms timeout
+            byte[]? upstreamResp = await QueryUpstreamUdpAsync(query, _upstreamDns, 2500, ct);
 
             // Failover to secondary upstream if primary failed or timed out
             if (upstreamResp == null && !string.IsNullOrWhiteSpace(_secondaryDns) && _secondaryDns != _upstreamDns)
             {
-                upstreamResp = await QueryUpstreamUdpAsync(query, _secondaryDns, 2000, ct);
+                upstreamResp = await QueryUpstreamUdpAsync(query, _secondaryDns, 2500, ct);
             }
 
             if (upstreamResp != null)
             {
-                if (cacheKey != null && upstreamResp.Length >= 12)
-                {
-                    if (_dnsCache.Count > 1024) _dnsCache.Clear();
-                    _dnsCache[cacheKey] = ((byte[])upstreamResp.Clone(), Environment.TickCount64 + 60_000L);
-                }
                 await server.SendAsync(upstreamResp, upstreamResp.Length, clientEp);
             }
             else
@@ -658,21 +630,6 @@ public class AdBlockEngine
         }
 
         return ms.ToArray();
-    }
-
-    private static int ParseQType(byte[] query)
-    {
-        if (query.Length < 12) return -1;
-        int offset = 12;
-        while (offset < query.Length)
-        {
-            int len = query[offset];
-            if (len == 0) { offset += 1; break; }
-            if (len > 63) return -1;
-            offset += len + 1;
-        }
-        if (offset + 2 > query.Length) return -1;
-        return (query[offset] << 8) | query[offset + 1];
     }
 
     private static async Task<byte[]?> QueryUpstreamUdpAsync(byte[] query, string upstreamIp, int timeoutMs, CancellationToken ct)

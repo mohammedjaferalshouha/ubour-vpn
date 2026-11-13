@@ -215,8 +215,6 @@ jobs:
 
           # Package x64 Assets
           Copy-Item -Path 'windows/Ubour-windows-x64/engine' -Destination 'publish/Ubour-windows-x64/engine' -Recurse -Force -ErrorAction SilentlyContinue
-          Copy-Item -Path 'windows/src/Ubour/engine/x86_64/sing-box.exe' -Destination 'publish/Ubour-windows-x64/engine/x86_64/sing-box.exe' -Force -ErrorAction SilentlyContinue
-          Copy-Item -Path 'windows/src/Ubour/engine/x86/sing-box.exe' -Destination 'publish/Ubour-windows-x64/engine/x86/sing-box.exe' -Force -ErrorAction SilentlyContinue
           Copy-Item -Path 'windows/Ubour-windows-x64/rules' -Destination 'publish/Ubour-windows-x64/rules' -Recurse -Force -ErrorAction SilentlyContinue
           Copy-Item -Path 'windows/Ubour-windows-x64/licenses' -Destination 'publish/Ubour-windows-x64/licenses' -Recurse -Force -ErrorAction SilentlyContinue
           Copy-Item -Path 'windows/Ubour-windows-x64/wintun.dll' -Destination 'publish/Ubour-windows-x64/' -Force -ErrorAction SilentlyContinue
@@ -226,8 +224,6 @@ jobs:
 
           # Package x86 Assets
           Copy-Item -Path 'windows/Ubour-windows-x86/engine' -Destination 'publish/Ubour-windows-x86/engine' -Recurse -Force -ErrorAction SilentlyContinue
-          Copy-Item -Path 'windows/src/Ubour/engine/x86_64/sing-box.exe' -Destination 'publish/Ubour-windows-x86/engine/x86_64/sing-box.exe' -Force -ErrorAction SilentlyContinue
-          Copy-Item -Path 'windows/src/Ubour/engine/x86/sing-box.exe' -Destination 'publish/Ubour-windows-x86/engine/x86/sing-box.exe' -Force -ErrorAction SilentlyContinue
           Copy-Item -Path 'windows/Ubour-windows-x86/rules' -Destination 'publish/Ubour-windows-x86/rules' -Recurse -Force -ErrorAction SilentlyContinue
           Copy-Item -Path 'windows/Ubour-windows-x86/licenses' -Destination 'publish/Ubour-windows-x86/licenses' -Recurse -Force -ErrorAction SilentlyContinue
           Copy-Item -Path 'windows/Ubour-windows-x86/wintun.dll' -Destination 'publish/Ubour-windows-x86/' -Force -ErrorAction SilentlyContinue
