@@ -219,9 +219,10 @@ class UbourVpnService : VpnService() {
 
                 // 3. Prepare YAML config for hev-socks5-tunnel
                 val udpMode = if (socksPort == SingboxManager.SOCKS_PORT) "'udp'" else "'none'"
+                val tunMtu = if (opMode == AppOperationMode.WARP_AND_ADBLOCK) 1500 else 9000
                 val tun2socksConfig = """
                 tunnel:
-                  mtu: 1500
+                  mtu: $tunMtu
                 socks5:
                   port: $socksPort
                   address: 127.0.0.1
@@ -237,21 +238,27 @@ class UbourVpnService : VpnService() {
                 // 4. Build VPN Interface
                 val builder = Builder().apply {
                     setSession(getString(R.string.app_name))
-                    setMtu(1500)
+                    setMtu(tunMtu)
                     addAddress("10.10.10.10", 32)
-                    addRoute("0.0.0.0", 0)
-
-                    addDnsServer("10.10.10.10")
-                    if (effectiveDns != "10.10.10.10") {
-                        addDnsServer(effectiveDns)
-                    }
-                    val secondaryDns = if (opMode == AppOperationMode.WARP_AND_ADBLOCK) {
-                        "1.0.0.1"
+                    if (opMode == AppOperationMode.ADBLOCK_ONLY) {
+                        // In AdBlock-Only mode, route only DNS traffic through tun0 so all web/download
+                        // traffic uses the physical NIC directly at full native speed.
+                        addRoute("10.10.10.10", 32)
+                        addDnsServer("10.10.10.10")
                     } else {
-                        SECONDARY_DNS_MAP[effectiveDns] ?: (if (effectiveDns != "8.8.4.4") "8.8.4.4" else "8.8.8.8")
-                    }
-                    if (secondaryDns != effectiveDns && secondaryDns != "10.10.10.10") {
-                        addDnsServer(secondaryDns)
+                        addRoute("0.0.0.0", 0)
+                        addDnsServer("10.10.10.10")
+                        if (effectiveDns != "10.10.10.10") {
+                            addDnsServer(effectiveDns)
+                        }
+                        val secondaryDns = if (opMode == AppOperationMode.WARP_AND_ADBLOCK) {
+                            "1.0.0.1"
+                        } else {
+                            SECONDARY_DNS_MAP[effectiveDns] ?: (if (effectiveDns != "8.8.4.4") "8.8.4.4" else "8.8.8.8")
+                        }
+                        if (secondaryDns != effectiveDns && secondaryDns != "10.10.10.10") {
+                            addDnsServer(secondaryDns)
+                        }
                     }
 
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
