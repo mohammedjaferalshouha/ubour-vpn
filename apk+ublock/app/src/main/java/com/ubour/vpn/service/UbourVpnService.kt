@@ -241,10 +241,12 @@ class UbourVpnService : VpnService() {
                     setMtu(tunMtu)
                     addAddress("10.10.10.10", 32)
                     if (opMode == AppOperationMode.ADBLOCK_ONLY) {
-                        // In AdBlock-Only mode, route only DNS traffic through tun0 so all web/download
-                        // traffic uses the physical NIC directly at full native speed.
-                        addRoute("10.10.10.10", 32)
-                        addDnsServer("10.10.10.10")
+                        // In AdBlock-Only mode, route only the upstream DNS IP through tun0 so DNS
+                        // is hijacked by sing-box/DnsFilterServer while all other traffic uses the
+                        // physical NIC directly at full native speed. (Using effectiveDns != 10.10.10.10
+                        // ensures Android routes DNS packets into tun0 rather than local loopback.)
+                        addRoute(effectiveDns, 32)
+                        addDnsServer(effectiveDns)
                     } else {
                         addRoute("0.0.0.0", 0)
                         addDnsServer("10.10.10.10")
