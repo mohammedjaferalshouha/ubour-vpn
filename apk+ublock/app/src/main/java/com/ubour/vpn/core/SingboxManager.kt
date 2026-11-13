@@ -157,7 +157,7 @@ object SingboxManager {
             put("peers", JSONArray().apply {
                 put(peerObj)
             })
-            put("mtu", 1400)
+            put("mtu", 1280)
         }
 
         val root = JSONObject().apply {

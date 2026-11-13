@@ -198,7 +198,7 @@ class UbourVpnService : VpnService() {
 
                 // 3. Prepare YAML config for hev-socks5-tunnel
                 val udpMode = "'udp'"
-                val tunMtu = if (opMode == AppOperationMode.WARP_AND_ADBLOCK) 1400 else 9000
+                val tunMtu = if (opMode == AppOperationMode.WARP_AND_ADBLOCK) 1280 else 9000
                 val tun2socksConfig = """
                 tunnel:
                   mtu: $tunMtu

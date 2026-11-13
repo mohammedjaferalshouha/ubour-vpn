@@ -189,7 +189,7 @@ public class SingboxManager
                     name = "warp",
                     address = addresses,
                     private_key = warp.PrivateKey,
-                    mtu = 1400,
+                    mtu = 1280,
                     peers = new object[]
                     {
                         new
