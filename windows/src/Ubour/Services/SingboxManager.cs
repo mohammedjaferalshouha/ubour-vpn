@@ -62,15 +62,26 @@ public class SingboxManager : IDisposable
         string? probeConfig = null;
         Process? probeProcess = null;
         string? startupError = null;
+        var recentLogs = new List<string>();
+        var logLock = new object();
 
         try
         {
             probeConfig = GenerateWarpMasqueProbeConfig(upstreamSocksPort, endpointHost, probePort);
             probeProcess = LaunchSingboxProcess(baseDir, probeConfig, (line, _) =>
             {
-                if (line.Contains("fatal", StringComparison.OrdinalIgnoreCase))
+                lock (logLock)
                 {
-                    startupError ??= line;
+                    if (recentLogs.Count < 12)
+                    {
+                        recentLogs.Add(line);
+                    }
+                    if (startupError == null &&
+                        (line.Contains("fatal", StringComparison.OrdinalIgnoreCase) ||
+                         line.Contains("error", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        startupError = line;
+                    }
                 }
             });
 
@@ -79,9 +90,30 @@ public class SingboxManager : IDisposable
                 return new WarpConnectivityResult { Success = false, ErrorMessage = "Failed to start sing-box MASQUE chain probe." };
             }
 
-            if (!WaitForPortListening(probeProcess, probePort, 2000))
+            if (!await WaitForPortListeningAsync(probeProcess, probePort, Math.Clamp(timeoutMs, 6000, 10000)).ConfigureAwait(false))
             {
-                return new WarpConnectivityResult { Success = false, ErrorMessage = startupError ?? "Probe proxy port did not open." };
+                bool exited = probeProcess.HasExited;
+                if (exited)
+                {
+                    try { probeProcess.WaitForExit(500); } catch { }
+                }
+
+                string? capturedError;
+                string logsSummary;
+                lock (logLock)
+                {
+                    capturedError = startupError;
+                    logsSummary = recentLogs.Count > 0 ? string.Join(" | ", recentLogs) : "(none)";
+                }
+
+                string exitInfo = exited ? $", code={probeProcess.ExitCode}" : "";
+                return new WarpConnectivityResult
+                {
+                    Success = false,
+                    ErrorMessage = !string.IsNullOrWhiteSpace(capturedError)
+                        ? capturedError
+                        : $"Probe proxy port {probePort} did not open (exited={exited}{exitInfo}). Logs: {logsSummary}"
+                };
             }
 
             return await ProbeWarpThroughRunningProxyAsync(probePort, timeoutMs, measureSpeed).ConfigureAwait(false);
@@ -201,8 +233,12 @@ public class SingboxManager : IDisposable
                 return new WarpConnectivityResult { Success = false, ErrorMessage = "Failed to start sing-box probe." };
             }
 
-            if (!WaitForPortListening(probeProcess, probePort, 2000))
+            if (!await WaitForPortListeningAsync(probeProcess, probePort, Math.Clamp(timeoutMs, 5000, 10000)).ConfigureAwait(false))
             {
+                if (probeProcess.HasExited)
+                {
+                    try { probeProcess.WaitForExit(500); } catch { }
+                }
                 return new WarpConnectivityResult { Success = false, ErrorMessage = startupError ?? "Probe proxy port did not open." };
             }
 
@@ -327,7 +363,7 @@ public class SingboxManager : IDisposable
 
     private static int GetFreeLocalTcpPort() => UsqueManager.GetFreeLocalPort();
 
-    private static bool WaitForPortListening(Process process, int port, int timeoutMs)
+    private static async Task<bool> WaitForPortListeningAsync(Process process, int port, int timeoutMs)
     {
         var sw = Stopwatch.StartNew();
         while (sw.ElapsedMilliseconds < timeoutMs)
@@ -336,13 +372,15 @@ public class SingboxManager : IDisposable
             try
             {
                 using var client = new TcpClient();
-                if (client.ConnectAsync(IPAddress.Loopback, port).Wait(250) && client.Connected)
+                using var cts = new CancellationTokenSource(250);
+                await client.ConnectAsync(IPAddress.Loopback, port, cts.Token).ConfigureAwait(false);
+                if (client.Connected)
                 {
                     return true;
                 }
             }
             catch { }
-            Thread.Sleep(50);
+            await Task.Delay(50).ConfigureAwait(false);
         }
         return false;
     }
