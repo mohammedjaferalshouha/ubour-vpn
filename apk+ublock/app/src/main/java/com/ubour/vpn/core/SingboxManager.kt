@@ -10,7 +10,24 @@ import java.io.File
 object SingboxManager {
     private const val TAG = "SingboxManager"
     private var process: Process? = null
+    private var probeProcess: Process? = null
     const val SOCKS_PORT = 10809
+    const val PROBE_BASE_PORT = 10820
+    const val DNS_FILTER_PORT = 5355
+
+    private fun buildLocalDnsConfig(): JSONObject {
+        return JSONObject().apply {
+            put("servers", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("tag", "dns-filter")
+                    put("type", "udp")
+                    put("server", "127.0.0.1")
+                    put("server_port", DNS_FILTER_PORT)
+                })
+            })
+            put("final", "dns-filter")
+        }
+    }
 
     fun isRunning(): Boolean {
         val p = process ?: return false
@@ -58,11 +75,163 @@ object SingboxManager {
 
     fun stop() {
         try {
-            process?.destroy()
+            val p = process
+            p?.destroy()
+            if (p != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && p.isAlive) {
+                p.destroyForcibly()
+            }
             process = null
             Log.i(TAG, "Sing-box process stopped")
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping Sing-box: ${e.message}")
+        }
+    }
+
+    fun isProbeRunning(): Boolean {
+        val p = probeProcess ?: return false
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            p.isAlive
+        } else {
+            try {
+                p.exitValue()
+                false
+            } catch (_: IllegalThreadStateException) {
+                true
+            }
+        }
+    }
+
+    fun stopProbe() {
+        try {
+            val p = probeProcess
+            p?.destroy()
+            if (p != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && p.isAlive) {
+                p.destroyForcibly()
+            }
+            probeProcess = null
+        } catch (e: Exception) {
+            Log.w(TAG, "Error stopping Sing-box probe: ${e.message}")
+        }
+    }
+
+    fun startWarpProbeBatch(
+        context: Context,
+        warp: WarpConfig,
+        endpoints: List<Pair<String, Int>>,
+        basePort: Int = PROBE_BASE_PORT
+    ): Boolean {
+        if (endpoints.isEmpty()) return false
+        stopProbe()
+        val binaryToRun = getExecutableBinary(context) ?: return false
+        if (!binaryToRun.exists()) return false
+
+        val addrs = JSONArray().apply {
+            put(warp.localIpv4)
+            if (!warp.localIpv6.isNullOrBlank()) {
+                put(warp.localIpv6)
+            }
+        }
+
+        val endpointsArr = JSONArray()
+        val inboundsArr = JSONArray()
+        val rulesArr = JSONArray()
+
+        endpoints.forEachIndexed { idx, (host, port) ->
+            val epTag = "warp-probe-$idx"
+            val inTag = "socks-probe-$idx"
+            val peerObj = JSONObject().apply {
+                put("address", host)
+                put("port", port)
+                put("public_key", warp.peerPublicKey)
+                put("allowed_ips", JSONArray().apply {
+                    put("0.0.0.0/0")
+                    put("::/0")
+                })
+                if (warp.reserved.size == 3) {
+                    put("reserved", JSONArray().apply {
+                        warp.reserved.forEach { put(it) }
+                    })
+                }
+            }
+            endpointsArr.put(JSONObject().apply {
+                put("type", "wireguard")
+                put("tag", epTag)
+                put("address", addrs)
+                put("private_key", warp.privateKey)
+                put("peers", JSONArray().apply { put(peerObj) })
+                put("mtu", 1280)
+            })
+            inboundsArr.put(JSONObject().apply {
+                put("type", "socks")
+                put("tag", inTag)
+                put("listen", "127.0.0.1")
+                put("listen_port", basePort + idx)
+            })
+            rulesArr.put(JSONObject().apply {
+                put("inbound", JSONArray().apply { put(inTag) })
+                put("outbound", epTag)
+            })
+        }
+
+        val root = JSONObject().apply {
+            put("log", JSONObject().apply { put("level", "warn") })
+            if (endpoints.size == 1) {
+                put("dns", JSONObject().apply {
+                    put("servers", JSONArray().apply {
+                        put(JSONObject().apply {
+                            put("tag", "probe-dns")
+                            put("type", "udp")
+                            put("server", "1.1.1.1")
+                            put("server_port", 53)
+                            put("detour", "warp-probe-0")
+                        })
+                    })
+                    put("final", "probe-dns")
+                })
+            }
+            put("endpoints", endpointsArr)
+            put("inbounds", inboundsArr)
+            put("outbounds", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("type", "direct")
+                    put("tag", "direct")
+                })
+            })
+            put("route", JSONObject().apply {
+                put("rules", rulesArr)
+                put("final", "direct")
+            })
+        }
+
+        val configFile = File(context.filesDir, "singbox_probe.json")
+        configFile.writeText(root.toString())
+
+        return try {
+            val pb = ProcessBuilder(
+                binaryToRun.absolutePath,
+                "run",
+                "-c",
+                configFile.absolutePath
+            ).directory(context.filesDir)
+             .redirectErrorStream(true)
+
+            val startedProc = pb.start()
+            probeProcess = startedProc
+
+            Thread {
+                try {
+                    val reader = startedProc.inputStream.bufferedReader()
+                    while (startedProc.isAlive) {
+                        reader.readLine() ?: break
+                    }
+                } catch (_: Exception) {}
+            }.apply { isDaemon = true }.start()
+
+            Thread.sleep(220)
+            isProbeRunning()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start Sing-box probe process: ${e.message}", e)
+            false
         }
     }
 
@@ -110,10 +279,10 @@ object SingboxManager {
                     val reader = process?.inputStream?.bufferedReader()
                     while (isRunning()) {
                         val line = reader?.readLine() ?: break
-                        Log.i("SingboxCore", line)
+                        Log.w("SingboxCore", line)
                     }
                 } catch (_: Exception) {}
-            }.start()
+            }.apply { isDaemon = true }.start()
 
             Thread.sleep(400)
             val alive = isRunning()
@@ -148,6 +317,7 @@ object SingboxManager {
             }
         }
 
+        val workerCount = Runtime.getRuntime().availableProcessors().coerceIn(2, 4)
         val warpEndpoint = JSONObject().apply {
             put("type", "wireguard")
             put("tag", "warp-ep")
@@ -157,33 +327,31 @@ object SingboxManager {
                 put(peerObj)
             })
             put("mtu", 1280)
+            put("workers", workerCount)
         }
 
         val root = JSONObject().apply {
             put("log", JSONObject().apply {
-                put("level", "info")
+                put("level", "warn")
             })
             put("endpoints", JSONArray().apply {
                 put(warpEndpoint)
             })
-            put("dns", JSONObject().apply {
-                put("servers", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("tag", "dns-filter")
-                        put("type", "udp")
-                        put("server", "127.0.0.1")
-                        put("server_port", 5353)
-                        put("detour", "direct")
-                    })
-                })
-                put("final", "dns-filter")
-            })
+            put("dns", buildLocalDnsConfig())
             put("inbounds", JSONArray().apply {
                 put(JSONObject().apply {
                     put("type", "socks")
                     put("tag", "socks-in")
                     put("listen", "127.0.0.1")
                     put("listen_port", SOCKS_PORT)
+                })
+                put(JSONObject().apply {
+                    put("type", "direct")
+                    put("tag", "dns-upstream-in")
+                    put("listen", "127.0.0.1")
+                    put("listen_port", 5354)
+                    put("override_address", "1.1.1.1")
+                    put("override_port", 53)
                 })
             })
             put("outbounds", JSONArray().apply {
@@ -192,8 +360,28 @@ object SingboxManager {
                     put("tag", "direct")
                 })
             })
+            val warpRules = JSONArray().apply {
+                put(JSONObject().apply {
+                    put("inbound", JSONArray().apply { put("dns-upstream-in") })
+                    put("outbound", "warp-ep")
+                })
+                if (!enableAdBlock) {
+                    put(JSONObject().apply {
+                        put("port", JSONArray().apply { put(53) })
+                        put("action", "hijack-dns")
+                    })
+                }
+                val sharedRules = buildRouteRules(
+                    enableAdBlock = enableAdBlock,
+                    outboundTag = "warp-ep",
+                    rejectQuic = false
+                )
+                for (i in 0 until sharedRules.length()) {
+                    put(sharedRules.get(i))
+                }
+            }
             put("route", JSONObject().apply {
-                put("rules", buildRouteRules(enableAdBlock, "warp-ep"))
+                put("rules", warpRules)
                 put("final", "warp-ep")
             })
         }
@@ -206,20 +394,9 @@ object SingboxManager {
     private fun generateAdBlockOnlyConfig(context: Context): File {
         val root = JSONObject().apply {
             put("log", JSONObject().apply {
-                put("level", "info")
+                put("level", "warn")
             })
-            put("dns", JSONObject().apply {
-                put("servers", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("tag", "dns-filter")
-                        put("type", "udp")
-                        put("server", "127.0.0.1")
-                        put("server_port", 5353)
-                        put("detour", "direct")
-                    })
-                })
-                put("final", "dns-filter")
-            })
+            put("dns", buildLocalDnsConfig())
             put("inbounds", JSONArray().apply {
                 put(JSONObject().apply {
                     put("type", "socks")
@@ -255,20 +432,9 @@ object SingboxManager {
 
         val root = JSONObject().apply {
             put("log", JSONObject().apply {
-                put("level", "info")
+                put("level", "warn")
             })
-            put("dns", JSONObject().apply {
-                put("servers", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("tag", "dns-filter")
-                        put("type", "udp")
-                        put("server", "127.0.0.1")
-                        put("server_port", 5353)
-                        put("detour", "direct")
-                    })
-                })
-                put("final", "dns-filter")
-            })
+            put("dns", buildLocalDnsConfig())
             put("inbounds", JSONArray().apply {
                 put(JSONObject().apply {
                     put("type", "socks")
@@ -305,20 +471,9 @@ object SingboxManager {
 
         val root = JSONObject().apply {
             put("log", JSONObject().apply {
-                put("level", "info")
+                put("level", "warn")
             })
-            put("dns", JSONObject().apply {
-                put("servers", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("tag", "dns-filter")
-                        put("type", "udp")
-                        put("server", "127.0.0.1")
-                        put("server_port", 5353)
-                        put("detour", "direct")
-                    })
-                })
-                put("final", "dns-filter")
-            })
+            put("dns", buildLocalDnsConfig())
             put("inbounds", JSONArray().apply {
                 put(JSONObject().apply {
                     put("type", "socks")
@@ -418,7 +573,7 @@ object SingboxManager {
             }
 
             val root = JSONObject().apply {
-                put("log", JSONObject().put("level", "info"))
+                put("log", JSONObject().put("level", "warn"))
                 put("dns", JSONObject().apply {
                     put("servers", JSONArray().apply {
                         put(JSONObject().apply {
@@ -461,14 +616,20 @@ object SingboxManager {
         }
     }
 
-    private fun buildRouteRules(enableAdBlock: Boolean, outboundTag: String): JSONArray {
+    private fun buildRouteRules(
+        enableAdBlock: Boolean,
+        outboundTag: String,
+        rejectQuic: Boolean = true
+    ): JSONArray {
         val rules = JSONArray()
-        // 0. Reject QUIC (UDP 443) to force immediate fallback to clean TCP
-        rules.put(JSONObject().apply {
-            put("network", JSONArray().apply { put("udp") })
-            put("port", JSONArray().apply { put(443) })
-            put("action", "reject")
-        })
+        // 0. Reject QUIC (UDP 443) only in direct DPI-bypass modes that require clean TCP
+        if (rejectQuic) {
+            rules.put(JSONObject().apply {
+                put("network", JSONArray().apply { put("udp") })
+                put("port", JSONArray().apply { put(443) })
+                put("action", "reject")
+            })
+        }
         if (enableAdBlock) {
             // 1. Hijack standard DNS on port 53 to our local dns-filter
             rules.put(JSONObject().apply {

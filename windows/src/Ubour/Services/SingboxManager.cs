@@ -2,15 +2,27 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Net.Sockets;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Tasks;
 using Ubour.Models;
 
 namespace Ubour.Services;
 
-public class SingboxManager
+public sealed class WarpConnectivityResult
+{
+    public bool Success { get; set; }
+    public long LatencyMs { get; set; }
+    public double DownloadMbps { get; set; }
+    public WarpLocationInfo? Location { get; set; }
+    public string? ErrorMessage { get; set; }
+}
+
+public class SingboxManager : IDisposable
 {
     private Process? _process;
     private string? _currentConfigFile;
@@ -28,6 +40,77 @@ public class SingboxManager
         _warpStartupError = null;
         string configPath = GenerateWarpConfig(warp, enableAdBlock, baseDir);
         return StartProcess(baseDir, configPath);
+    }
+
+    public bool StartWarpViaSocks(string baseDir, int upstreamSocksPort, string endpointHost = "162.159.198.2", bool enableAdBlock = true)
+    {
+        Stop();
+        _tunStarted = false;
+        _warpStartupError = null;
+        string configPath = GenerateWarpMasqueConfig(upstreamSocksPort, endpointHost, enableAdBlock, baseDir);
+        return StartProcess(baseDir, configPath);
+    }
+
+    public async Task<WarpConnectivityResult> VerifyWarpMasqueChainAsync(
+        string baseDir,
+        int upstreamSocksPort,
+        string endpointHost = "162.159.198.2",
+        int timeoutMs = 5500,
+        bool measureSpeed = false)
+    {
+        int probePort = GetFreeLocalTcpPort();
+        string? probeConfig = null;
+        Process? probeProcess = null;
+        string? startupError = null;
+
+        try
+        {
+            probeConfig = GenerateWarpMasqueProbeConfig(upstreamSocksPort, endpointHost, probePort);
+            probeProcess = LaunchSingboxProcess(baseDir, probeConfig, (line, _) =>
+            {
+                if (line.Contains("fatal", StringComparison.OrdinalIgnoreCase))
+                {
+                    startupError ??= line;
+                }
+            });
+
+            if (probeProcess == null)
+            {
+                return new WarpConnectivityResult { Success = false, ErrorMessage = "Failed to start sing-box MASQUE chain probe." };
+            }
+
+            if (!WaitForPortListening(probeProcess, probePort, 2000))
+            {
+                return new WarpConnectivityResult { Success = false, ErrorMessage = startupError ?? "Probe proxy port did not open." };
+            }
+
+            return await ProbeWarpThroughRunningProxyAsync(probePort, timeoutMs, measureSpeed).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            return new WarpConnectivityResult { Success = false, ErrorMessage = startupError ?? ex.Message };
+        }
+        finally
+        {
+            if (probeProcess != null)
+            {
+                try
+                {
+                    if (!probeProcess.HasExited)
+                    {
+                        probeProcess.Kill(true);
+                        probeProcess.WaitForExit(1500);
+                    }
+                    probeProcess.Dispose();
+                }
+                catch { }
+            }
+
+            if (!string.IsNullOrEmpty(probeConfig) && File.Exists(probeConfig))
+            {
+                try { File.Delete(probeConfig); } catch { }
+            }
+        }
     }
 
     public bool StartAdBlockOnly(string baseDir)
@@ -88,6 +171,182 @@ public class SingboxManager
         return false;
     }
 
+    public async Task<WarpConnectivityResult> VerifyWarpEndpointConnectivityAsync(
+        string baseDir,
+        WarpConfig warp,
+        int timeoutMs = 5500,
+        bool measureSpeed = false)
+    {
+        int probePort = GetFreeLocalTcpPort();
+        string? probeConfig = null;
+        Process? probeProcess = null;
+        string? startupError = null;
+
+        try
+        {
+            probeConfig = GenerateWarpProbeConfig(warp, probePort);
+            probeProcess = LaunchSingboxProcess(baseDir, probeConfig, (line, isError) =>
+            {
+                if (line.Contains("endpoint/wireguard[warp-ep]", StringComparison.OrdinalIgnoreCase) &&
+                    (line.Contains("unable to update bind", StringComparison.OrdinalIgnoreCase) ||
+                     line.Contains("failed", StringComparison.OrdinalIgnoreCase) ||
+                     line.Contains("fatal", StringComparison.OrdinalIgnoreCase)))
+                {
+                    startupError ??= line;
+                }
+            });
+
+            if (probeProcess == null)
+            {
+                return new WarpConnectivityResult { Success = false, ErrorMessage = "Failed to start sing-box probe." };
+            }
+
+            if (!WaitForPortListening(probeProcess, probePort, 2000))
+            {
+                return new WarpConnectivityResult { Success = false, ErrorMessage = startupError ?? "Probe proxy port did not open." };
+            }
+
+            var result = await ProbeWarpThroughRunningProxyAsync(probePort, timeoutMs, measureSpeed).ConfigureAwait(false);
+            if (!result.Success && !string.IsNullOrWhiteSpace(startupError))
+            {
+                result.ErrorMessage = startupError;
+            }
+            return result;
+        }
+        catch (Exception ex)
+        {
+            return new WarpConnectivityResult { Success = false, ErrorMessage = startupError ?? ex.Message };
+        }
+        finally
+        {
+            if (probeProcess != null)
+            {
+                try
+                {
+                    if (!probeProcess.HasExited)
+                    {
+                        probeProcess.Kill(true);
+                        probeProcess.WaitForExit(1500);
+                    }
+                    probeProcess.Dispose();
+                }
+                catch { }
+            }
+
+            if (!string.IsNullOrEmpty(probeConfig) && File.Exists(probeConfig))
+            {
+                try { File.Delete(probeConfig); } catch { }
+            }
+        }
+    }
+
+    public async Task<WarpConnectivityResult> ProbeWarpThroughRunningProxyAsync(
+        int proxyPort = 2080,
+        int timeoutMs = 4500,
+        bool measureSpeed = false)
+    {
+        try
+        {
+            using var handler = new SocketsHttpHandler
+            {
+                Proxy = new WebProxy($"http://127.0.0.1:{proxyPort}"),
+                UseProxy = true,
+                ConnectTimeout = TimeSpan.FromMilliseconds(timeoutMs)
+            };
+            using var http = new HttpClient(handler)
+            {
+                Timeout = TimeSpan.FromMilliseconds(timeoutMs)
+            };
+
+            string? traceBody = null;
+            long latencyMs = 0;
+
+            foreach (string traceUrl in new[] { "https://1.1.1.1/cdn-cgi/trace", "https://www.cloudflare.com/cdn-cgi/trace" })
+            {
+                try
+                {
+                    var sw = Stopwatch.StartNew();
+                    using var resp = await http.GetAsync(traceUrl).ConfigureAwait(false);
+                    if (resp.IsSuccessStatusCode)
+                    {
+                        string body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        sw.Stop();
+                        if (!string.IsNullOrWhiteSpace(body) &&
+                            body.Contains("colo=", StringComparison.OrdinalIgnoreCase) &&
+                            !body.Contains("warp=off", StringComparison.OrdinalIgnoreCase))
+                        {
+                            traceBody = body;
+                            latencyMs = Math.Max(1, sw.ElapsedMilliseconds);
+                            break;
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            if (string.IsNullOrWhiteSpace(traceBody))
+            {
+                return new WarpConnectivityResult
+                {
+                    Success = false,
+                    ErrorMessage = "WARP WireGuard handshake did not complete or no traffic passed through the tunnel."
+                };
+            }
+
+            var location = WarpManager.ResolveLocationFromTrace(traceBody);
+            double downloadMbps = 0;
+
+            if (measureSpeed)
+            {
+                try
+                {
+                    var speedSw = Stopwatch.StartNew();
+                    byte[] bytes = await http.GetByteArrayAsync("https://speed.cloudflare.com/__down?bytes=262144").ConfigureAwait(false);
+                    speedSw.Stop();
+                    if (bytes.Length > 0 && speedSw.Elapsed.TotalSeconds > 0.001)
+                    {
+                        downloadMbps = (bytes.Length * 8.0) / (speedSw.Elapsed.TotalSeconds * 1_000_000.0);
+                    }
+                }
+                catch { }
+            }
+
+            return new WarpConnectivityResult
+            {
+                Success = true,
+                LatencyMs = latencyMs,
+                DownloadMbps = downloadMbps,
+                Location = location
+            };
+        }
+        catch (Exception ex)
+        {
+            return new WarpConnectivityResult { Success = false, ErrorMessage = ex.Message };
+        }
+    }
+
+    private static int GetFreeLocalTcpPort() => UsqueManager.GetFreeLocalPort();
+
+    private static bool WaitForPortListening(Process process, int port, int timeoutMs)
+    {
+        var sw = Stopwatch.StartNew();
+        while (sw.ElapsedMilliseconds < timeoutMs)
+        {
+            if (process.HasExited) return false;
+            try
+            {
+                using var client = new TcpClient();
+                if (client.ConnectAsync(IPAddress.Loopback, port).Wait(250) && client.Connected)
+                {
+                    return true;
+                }
+            }
+            catch { }
+            Thread.Sleep(50);
+        }
+        return false;
+    }
+
     public static bool IsIpv6Supported()
     {
         try
@@ -122,6 +381,26 @@ public class SingboxManager
 
     private string GenerateWarpConfig(WarpConfig warp, bool enableAdBlock, string? baseDir = null)
     {
+        string configFile = Path.Combine(ResolveWritableConfigDir(baseDir), "singbox_warp.json");
+        var configObj = BuildWarpConfigObject(warp, enableAdBlock, includeTun: true, mixedPort: 2080);
+
+        File.WriteAllText(configFile, JsonSerializer.Serialize(configObj, new JsonSerializerOptions { WriteIndented = true }));
+        _currentConfigFile = configFile;
+        return configFile;
+    }
+
+    private string GenerateWarpMasqueConfig(int upstreamSocksPort, string endpointHost, bool enableAdBlock, string? baseDir = null)
+    {
+        string configFile = Path.Combine(ResolveWritableConfigDir(baseDir), "singbox_warp_masque.json");
+        var configObj = BuildWarpMasqueConfigObject(upstreamSocksPort, endpointHost, enableAdBlock, includeTun: true, mixedPort: 2080);
+
+        File.WriteAllText(configFile, JsonSerializer.Serialize(configObj, new JsonSerializerOptions { WriteIndented = true }));
+        _currentConfigFile = configFile;
+        return configFile;
+    }
+
+    private static string ResolveWritableConfigDir(string? baseDir)
+    {
         string configDir = !string.IsNullOrWhiteSpace(baseDir) && Directory.Exists(baseDir)
             ? baseDir
             : Path.Combine(Path.GetTempPath(), "Ubour");
@@ -132,16 +411,97 @@ public class SingboxManager
             string testFile = Path.Combine(configDir, ".write_test");
             File.WriteAllText(testFile, "test");
             File.Delete(testFile);
+            return configDir;
         }
         catch
         {
-            configDir = Path.Combine(Path.GetTempPath(), "Ubour");
-            Directory.CreateDirectory(configDir);
+            string fallback = Path.Combine(Path.GetTempPath(), "Ubour");
+            Directory.CreateDirectory(fallback);
+            return fallback;
+        }
+    }
+
+    private static string GenerateWarpProbeConfig(WarpConfig warp, int mixedPort)
+    {
+        string tmpDir = Path.Combine(Path.GetTempPath(), "Ubour");
+        Directory.CreateDirectory(tmpDir);
+        string configFile = Path.Combine(tmpDir, $"singbox_warp_probe_{Guid.NewGuid():N}.json");
+        var configObj = BuildWarpConfigObject(warp, enableAdBlock: false, includeTun: false, mixedPort: mixedPort);
+        File.WriteAllText(configFile, JsonSerializer.Serialize(configObj, new JsonSerializerOptions { WriteIndented = true }));
+        return configFile;
+    }
+
+    private static string GenerateWarpMasqueProbeConfig(int upstreamSocksPort, string endpointHost, int mixedPort)
+    {
+        string tmpDir = Path.Combine(Path.GetTempPath(), "Ubour");
+        Directory.CreateDirectory(tmpDir);
+        string configFile = Path.Combine(tmpDir, $"singbox_warp_masque_probe_{Guid.NewGuid():N}.json");
+        var configObj = BuildWarpMasqueConfigObject(upstreamSocksPort, endpointHost, enableAdBlock: false, includeTun: false, mixedPort: mixedPort);
+        File.WriteAllText(configFile, JsonSerializer.Serialize(configObj, new JsonSerializerOptions { WriteIndented = true }));
+        return configFile;
+    }
+
+    private static object BuildWarpMasqueConfigObject(int upstreamSocksPort, string endpointHost, bool enableAdBlock, bool includeTun, int mixedPort)
+    {
+        var dnsObj = BuildDnsConfig(enableAdBlock, "warp-ep", "1.1.1.1", endpointHost, useTcpRemoteDns: true);
+        var routeRules = BuildRouteRules(enableAdBlock, "warp-ep", endpointHost, endpointPort: 0, isMasqueSocks: true);
+
+        var inboundsList = new List<object>();
+        if (includeTun)
+        {
+            inboundsList.Add(new
+            {
+                type = "tun",
+                tag = "tun-in",
+                interface_name = "Ubour-tun",
+                address = new string[] { "172.19.0.1/30" },
+                auto_route = true,
+                strict_route = false,
+                stack = "system"
+            });
         }
 
-        string configFile = Path.Combine(configDir, "singbox_warp.json");
+        inboundsList.Add(new
+        {
+            type = "mixed",
+            tag = "mixed-in",
+            listen = "127.0.0.1",
+            listen_port = mixedPort
+        });
 
-        var dnsObj = BuildDnsConfig(enableAdBlock, "warp-ep");
+        return new
+        {
+            log = new { level = "info" },
+            dns = dnsObj,
+            inbounds = inboundsList.ToArray(),
+            outbounds = new object[]
+            {
+                new
+                {
+                    type = "socks",
+                    tag = "warp-ep",
+                    server = "127.0.0.1",
+                    server_port = upstreamSocksPort
+                },
+                new
+                {
+                    type = "direct",
+                    tag = "direct",
+                    domain_resolver = "dns-direct"
+                }
+            },
+            route = new
+            {
+                rules = routeRules,
+                auto_detect_interface = true,
+                default_domain_resolver = "dns-direct"
+            }
+        };
+    }
+
+    private static object BuildWarpConfigObject(WarpConfig warp, bool enableAdBlock, bool includeTun, int mixedPort)
+    {
+        var dnsObj = BuildDnsConfig(enableAdBlock, "warp-ep", "1.1.1.1", warp.EndpointHost);
         var routeRules = BuildRouteRules(enableAdBlock, "warp-ep", warp.EndpointHost, warp.EndpointPort);
 
         bool hasIpv6 = IsIpv6Supported();
@@ -153,9 +513,10 @@ public class SingboxManager
             ? new string[] { "0.0.0.0/0", "::/0" }
             : new string[] { "0.0.0.0/0" };
 
-        var inboundsList = new List<object>
+        var inboundsList = new List<object>();
+        if (includeTun)
         {
-            new
+            inboundsList.Add(new
             {
                 type = "tun",
                 tag = "tun-in",
@@ -164,17 +525,18 @@ public class SingboxManager
                 auto_route = true,
                 strict_route = false,
                 stack = "system"
-            },
-            new
-            {
-                type = "mixed",
-                tag = "mixed-in",
-                listen = "127.0.0.1",
-                listen_port = 2080
-            }
-        };
+            });
+        }
 
-        var configObj = new
+        inboundsList.Add(new
+        {
+            type = "mixed",
+            tag = "mixed-in",
+            listen = "127.0.0.1",
+            listen_port = mixedPort
+        });
+
+        return new
         {
             log = new { level = "info" },
             dns = dnsObj,
@@ -210,24 +572,23 @@ public class SingboxManager
                 {
                     type = "direct",
                     tag = "direct-warp",
-                    udp_fragment = true
+                    udp_fragment = true,
+                    domain_resolver = "dns-direct"
                 },
                 new
                 {
                     type = "direct",
-                    tag = "direct"
+                    tag = "direct",
+                    domain_resolver = "dns-direct"
                 }
             },
             route = new
             {
                 rules = routeRules,
-                auto_detect_interface = true
+                auto_detect_interface = true,
+                default_domain_resolver = "dns-direct"
             }
         };
-
-        File.WriteAllText(configFile, JsonSerializer.Serialize(configObj, new JsonSerializerOptions { WriteIndented = true }));
-        _currentConfigFile = configFile;
-        return configFile;
     }
 
     private string GenerateAdBlockOnlyConfig()
@@ -397,22 +758,58 @@ public class SingboxManager
         }
     }
 
-    private static object BuildDnsConfig(bool enableAdBlock = true, string mainOutbound = "direct", string upstreamDns = "1.1.1.1")
+    private static object BuildDnsConfig(bool enableAdBlock = true, string mainOutbound = "direct", string upstreamDns = "1.1.1.1", string? bypassDomain = null, bool useTcpRemoteDns = false)
     {
+        bool needsDirectResolver = mainOutbound != "direct";
+        bool hasHostnameBypass = needsDirectResolver &&
+                                 !string.IsNullOrWhiteSpace(bypassDomain) &&
+                                 !IPAddress.TryParse(bypassDomain, out _);
+
         if (enableAdBlock)
         {
+            var servers = new List<object>
+            {
+                new
+                {
+                    tag = "dns-filter",
+                    type = "udp",
+                    server = "127.0.0.1",
+                    server_port = 53
+                }
+            };
+
+            if (needsDirectResolver)
+            {
+                servers.Add(new
+                {
+                    tag = "dns-direct",
+                    type = "udp",
+                    server = upstreamDns,
+                    server_port = 53
+                });
+            }
+
+            if (hasHostnameBypass)
+            {
+                return new
+                {
+                    servers = servers.ToArray(),
+                    rules = new object[]
+                    {
+                        new
+                        {
+                            domain = new string[] { bypassDomain! },
+                            action = "route",
+                            server = "dns-direct"
+                        }
+                    },
+                    final = "dns-filter"
+                };
+            }
+
             return new
             {
-                servers = new object[]
-                {
-                    new
-                    {
-                        tag = "dns-filter",
-                        type = "udp",
-                        server = "127.0.0.1",
-                        server_port = 53
-                    }
-                },
+                servers = servers.ToArray(),
                 final = "dns-filter"
             };
         }
@@ -421,7 +818,7 @@ public class SingboxManager
             var serverObj = new Dictionary<string, object>
             {
                 ["tag"] = "dns-remote",
-                ["type"] = "udp",
+                ["type"] = useTcpRemoteDns ? "tcp" : "udp",
                 ["server"] = upstreamDns,
                 ["server_port"] = 53
             };
@@ -430,17 +827,70 @@ public class SingboxManager
                 serverObj["detour"] = mainOutbound;
             }
 
+            var servers = new List<object> { serverObj };
+            if (needsDirectResolver)
+            {
+                servers.Add(new
+                {
+                    tag = "dns-direct",
+                    type = "udp",
+                    server = upstreamDns,
+                    server_port = 53
+                });
+            }
+
+            if (hasHostnameBypass)
+            {
+                return new
+                {
+                    servers = servers.ToArray(),
+                    rules = new object[]
+                    {
+                        new
+                        {
+                            domain = new string[] { bypassDomain! },
+                            action = "route",
+                            server = "dns-direct"
+                        }
+                    },
+                    final = "dns-remote"
+                };
+            }
+
             return new
             {
-                servers = new object[] { serverObj },
+                servers = servers.ToArray(),
                 final = "dns-remote"
             };
         }
     }
 
-    private static object[] BuildRouteRules(bool enableAdBlock, string mainOutbound, string? endpointHost = null, int endpointPort = 0)
+    private static object[] BuildRouteRules(bool enableAdBlock, string mainOutbound, string? endpointHost = null, int endpointPort = 0, bool isMasqueSocks = false)
     {
         var rules = new List<object>();
+
+        if (isMasqueSocks)
+        {
+            // Keep usque.exe direct BEFORE any catch-all / QUIC block rules to avoid TUN routing loops.
+            rules.Add(new
+            {
+                process_name = new string[] { "usque.exe" },
+                action = "route",
+                outbound = "direct"
+            });
+            rules.Add(new
+            {
+                ip_cidr = new string[] { "162.159.198.0/24", "162.159.199.0/24" },
+                action = "route",
+                outbound = "direct"
+            });
+            rules.Add(new
+            {
+                domain = new string[] { "consumer-masque.cloudflareclient.com", "api.cloudflareclient.com" },
+                action = "route",
+                outbound = "direct"
+            });
+        }
 
         if (mainOutbound != "direct")
         {
@@ -501,6 +951,16 @@ public class SingboxManager
                 action = "reject"
             });
         }
+        else if (isMasqueSocks)
+        {
+            // Force browser HTTP/3 traffic onto TLS/TCP inside the MASQUE SOCKS tunnel instead of stalling on SOCKS5 UDP.
+            rules.Add(new
+            {
+                network = "udp",
+                port = new int[] { 443 },
+                action = "reject"
+            });
+        }
 
         if (!string.IsNullOrWhiteSpace(endpointHost))
         {
@@ -524,7 +984,7 @@ public class SingboxManager
             }
         }
 
-        if (endpointPort > 0)
+        if (endpointPort > 0 && !isMasqueSocks)
         {
             rules.Add(new
             {
@@ -548,40 +1008,46 @@ public class SingboxManager
         return rules.ToArray();
     }
 
+    private static Process? LaunchSingboxProcess(string baseDir, string configFile, Action<string, bool> onLogLine)
+    {
+        string arch = Environment.Is64BitOperatingSystem ? "x86_64" : "x86";
+        string exePath = Path.Combine(baseDir, "engine", arch, "sing-box.exe");
+
+        if (!File.Exists(exePath))
+        {
+            exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "engine", arch, "sing-box.exe");
+        }
+
+        if (!File.Exists(exePath)) return null;
+
+        string workDir = Path.GetDirectoryName(exePath)!;
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = exePath,
+            Arguments = $"run -c \"{configFile}\"",
+            WorkingDirectory = workDir,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        startInfo.EnvironmentVariables["ENABLE_DEPRECATED_MISSING_DOMAIN_RESOLVER"] = "true";
+
+        var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
+        process.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) onLogLine(e.Data, false); };
+        process.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) onLogLine(e.Data, true); };
+        process.Start();
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+        return process;
+    }
+
     private bool StartProcess(string baseDir, string configFile)
     {
         try
         {
-            string arch = Environment.Is64BitOperatingSystem ? "x86_64" : "x86";
-            string exePath = Path.Combine(baseDir, "engine", arch, "sing-box.exe");
-
-            if (!File.Exists(exePath))
-            {
-                exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "engine", arch, "sing-box.exe");
-            }
-
-            if (!File.Exists(exePath)) return false;
-
-            string workDir = Path.GetDirectoryName(exePath)!;
-
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = exePath,
-                Arguments = $"run -c \"{configFile}\"",
-                WorkingDirectory = workDir,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
-            };
-            startInfo.EnvironmentVariables["ENABLE_DEPRECATED_MISSING_DOMAIN_RESOLVER"] = "true";
-
-            _process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
-            _process.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) HandleProcessLog(e.Data, isError: false); };
-            _process.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) HandleProcessLog(e.Data, isError: true); };
-            _process.Start();
-            _process.BeginOutputReadLine();
-            _process.BeginErrorReadLine();
+            _process = LaunchSingboxProcess(baseDir, configFile, HandleProcessLog);
             AppLogger.Info($"[sing-box] Process started with config: {configFile}");
             if (_process == null || _process.HasExited) return false;
 
@@ -607,6 +1073,10 @@ public class SingboxManager
 
         if (line.Contains("inbound/tun[tun-in]", StringComparison.OrdinalIgnoreCase) &&
             (line.Contains("error", StringComparison.OrdinalIgnoreCase) || line.Contains("failed", StringComparison.OrdinalIgnoreCase)))
+            _warpStartupError ??= line;
+
+        if (line.Contains("outbound/socks[warp-ep]", StringComparison.OrdinalIgnoreCase) &&
+            line.Contains("fatal", StringComparison.OrdinalIgnoreCase))
             _warpStartupError ??= line;
 
         if (isError) AppLogger.Warn($"[sing-box] {line}");
@@ -640,5 +1110,11 @@ public class SingboxManager
             }
         }
         catch { }
+    }
+
+    public void Dispose()
+    {
+        Stop();
+        GC.SuppressFinalize(this);
     }
 }

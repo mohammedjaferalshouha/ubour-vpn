@@ -5,7 +5,7 @@ A high-performance, modern multi-mode VPN & Network AdBlock client for Windows 1
 ## Key Features
 
 - **4 Powerful Modes**:
-  1. **Cloudflare WARP + AdBlock**: High-speed encrypted cloud WireGuard tunnel with integrated zero-latency DNS ad & tracker blocking.
+  1. **Cloudflare WARP + AdBlock**: High-speed encrypted cloud tunnel supporting `MASQUE` (`usque.exe` v4.2.1) and `WireGuard` with integrated zero-latency DNS ad & tracker blocking.
   2. **AdBlock Only**: 100% direct line ISP speed with local microsecond DNS ad blocking (dual-stack IPv4/IPv6 port 53 listener).
   3. **GoodbyeDPI Bypass**: Direct DPI circumvention with customizable strength (-1, -5, -9).
   4. **Custom VLESS Reality**: Direct integration with Sing-box core for advanced proxy connections.
@@ -23,6 +23,7 @@ A high-performance, modern multi-mode VPN & Network AdBlock client for Windows 1
 ## Architecture & Bundled Core Engines
 
 - `sing-box.exe` v1.13.19 (Official x86)
+- `usque.exe` v4.2.1 (Official x86)
 - `goodbyedpi.exe` v0.2.3rc3 (Official x86)
 - `WinDivert.dll` & `WinDivert64.sys`
 - `wintun.dll`

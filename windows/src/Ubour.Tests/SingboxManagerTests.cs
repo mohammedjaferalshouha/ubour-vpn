@@ -303,4 +303,130 @@ public class SingboxManagerTests
 
         try { File.Delete(configPath); } catch { }
     }
+
+    [Fact]
+    public void SingboxManager_GenerateWarpConfig_WithDomainEndpoint_UsesDnsDirectAndPassesSingboxCheck()
+    {
+        string testDirectory = Path.Combine(Path.GetTempPath(), "UbourTests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(testDirectory);
+        var manager = new SingboxManager();
+        var warpConfig = new WarpConfig
+        {
+            LocalIpv4 = "172.16.0.2/32",
+            LocalIpv6 = "2606:4700:110:8f68:da91:a9d3:26d6:7b7d/128",
+            PrivateKey = "aGVsbG93b3JsZGhlbGxvd29ybGRoZWxsb3dvcmxkMQ==",
+            PeerPublicKey = "bm90YXJlYWxrZXlub3RhcmVhbGtleW5vdGFyZWFsMQ==",
+            EndpointHost = "engage.cloudflareclient.com",
+            EndpointPort = 4500,
+            Reserved = new[] { 1, 2, 3 }
+        };
+
+        try
+        {
+            var generate = typeof(SingboxManager).GetMethod("GenerateWarpConfig", BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.NotNull(generate);
+            string? configPath = generate.Invoke(manager, new object?[] { warpConfig, false, testDirectory }) as string;
+            Assert.NotNull(configPath);
+
+            string json = File.ReadAllText(configPath);
+            Assert.Contains("dns-direct", json);
+            Assert.Contains("default_domain_resolver", json);
+            Assert.DoesNotContain("\"detour\": \"direct\"", json);
+
+            string baseDir = TestPackagePaths.GetWindowsX64PackageDirectory();
+            string exePath = Path.Combine(baseDir, "engine", "x86_64", "sing-box.exe");
+            using var proc = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = exePath,
+                Arguments = $"check -c \"{configPath}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            });
+            Assert.NotNull(proc);
+            string stderr = proc.StandardError.ReadToEnd();
+            Assert.True(proc.WaitForExit(10000));
+            Assert.True(proc.ExitCode == 0, stderr);
+        }
+        finally
+        {
+            try { Directory.Delete(testDirectory, recursive: true); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task SingboxManager_VerifyWarpEndpointConnectivityAsync_WhenUnreachable_FailsCleanly()
+    {
+        string baseDir = TestPackagePaths.GetWindowsX64PackageDirectory();
+        using var manager = new SingboxManager();
+        var unreachableConfig = new WarpConfig
+        {
+            LocalIpv4 = "172.16.0.2/32",
+            PrivateKey = "8ELLb5KUvwsJxc0mQjkBaWYHsxFZG6pkHkVjRMHw52g=",
+            PeerPublicKey = "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+            EndpointHost = "127.0.0.1",
+            EndpointPort = 49998,
+            Reserved = new[] { 0, 0, 0 }
+        };
+
+        var result = await manager.VerifyWarpEndpointConnectivityAsync(baseDir, unreachableConfig, timeoutMs: 1200, measureSpeed: false);
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrWhiteSpace(result.ErrorMessage));
+        Assert.False(manager.IsRunning);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void SingboxManager_GenerateWarpMasqueConfig_PassesSingboxCheckCleanly(bool enableAdBlock)
+    {
+        string testDirectory = Path.Combine(Path.GetTempPath(), "UbourTests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(testDirectory);
+        var manager = new SingboxManager();
+
+        try
+        {
+            var generate = typeof(SingboxManager).GetMethod("GenerateWarpMasqueConfig", BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.NotNull(generate);
+            string? configPath = generate.Invoke(manager, new object?[] { 18923, "162.159.198.2", enableAdBlock, testDirectory }) as string;
+            Assert.NotNull(configPath);
+            Assert.True(File.Exists(configPath));
+
+            string json = File.ReadAllText(configPath);
+            Assert.Contains("\"type\": \"socks\"", json);
+            Assert.Contains("usque.exe", json);
+            Assert.Contains("162.159.198.0/24", json);
+            Assert.Contains("hijack-dns", json);
+            if (enableAdBlock)
+            {
+                Assert.Contains("dns-filter", json);
+            }
+            else
+            {
+                Assert.Contains("\"type\": \"tcp\"", json);
+                Assert.Contains("dns-remote", json);
+            }
+
+            string baseDir = TestPackagePaths.GetWindowsX64PackageDirectory();
+            string exePath = Path.Combine(baseDir, "engine", "x86_64", "sing-box.exe");
+            using var proc = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = exePath,
+                Arguments = $"check -c \"{configPath}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            });
+            Assert.NotNull(proc);
+            string stderr = proc.StandardError.ReadToEnd();
+            Assert.True(proc.WaitForExit(10000));
+            Assert.True(proc.ExitCode == 0, stderr);
+        }
+        finally
+        {
+            try { Directory.Delete(testDirectory, recursive: true); } catch { }
+        }
+    }
 }

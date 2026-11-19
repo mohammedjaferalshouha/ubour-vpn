@@ -166,4 +166,45 @@ class DnsAdBlockSimulationTest {
             assertFalse("Clean domain $domain must NOT be blocked", AdBlockEngine.isDomainBlocked(domain))
         }
     }
+
+    @Test
+    fun testDnsCacheHitAndTransactionIdRewriting() {
+        dnsServer.clearCache()
+        val q1 = buildDnsQuery("example.com")
+        q1[0] = 0x11.toByte()
+        q1[1] = 0x22.toByte()
+
+        // Build synthetic upstream A-record response (TTL = 180s, IP = 93.184.216.34)
+        val respBuf = ByteBuffer.allocate(q1.size + 16)
+        respBuf.put(q1[0])
+        respBuf.put(q1[1])
+        respBuf.put(0x81.toByte())
+        respBuf.put(0x80.toByte())
+        respBuf.putShort(1)
+        respBuf.putShort(1)
+        respBuf.putShort(0)
+        respBuf.putShort(0)
+        respBuf.put(q1, 12, q1.size - 12)
+        respBuf.put(0xC0.toByte())
+        respBuf.put(0x0C.toByte())
+        respBuf.putShort(1)
+        respBuf.putShort(1)
+        respBuf.putInt(180)
+        respBuf.putShort(4)
+        respBuf.put(byteArrayOf(93.toByte(), 184.toByte(), 216.toByte(), 34.toByte()))
+        val upstreamResp = respBuf.array()
+
+        assertNull(dnsServer.getCachedResponseForQuery(q1))
+        dnsServer.cacheUpstreamResponse(q1, upstreamResp)
+
+        val q2 = buildDnsQuery("EXAMPLE.COM")
+        q2[0] = 0x5A.toByte()
+        q2[1] = 0x6B.toByte()
+
+        val cached = dnsServer.getCachedResponseForQuery(q2)
+        assertNotNull("Expected DNS cache hit for case-insensitive matching query", cached)
+        assertEquals(0x5A.toByte(), cached!![0])
+        assertEquals(0x6B.toByte(), cached[1])
+        assertEquals(34.toByte(), cached[cached.size - 1])
+    }
 }

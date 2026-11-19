@@ -17,6 +17,65 @@ public class GoodbyeDpiManagerTests
         Assert.False(manager.IsRunning);
     }
 
+    [Fact]
+    public void GoodbyeDpiManager_CleanupWinDivertDriver_DoesNotThrow()
+    {
+        var ex = Record.Exception(() => GoodbyeDpiManager.CleanupWinDivertDriver(500));
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void App_GlobalCleanup_DoesNotThrow()
+    {
+        var manager = new GoodbyeDpiManager();
+        App.RegisterSessionManagers(manager, null, null);
+        try
+        {
+            var ex = Record.Exception(() => App.GlobalCleanup());
+            Assert.Null(ex);
+            Assert.False(manager.IsRunning);
+        }
+        finally
+        {
+            App.RegisterSessionManagers(null, null, null);
+        }
+    }
+
+    [Fact]
+    public void WatchdogService_BuildWatchdogScript_IncludesWinDivertCleanup_WhenGoodbyeDpiManaged()
+    {
+        string script = WatchdogService.BuildWatchdogScript(
+            1234,
+            new (int, long, string)[]
+            {
+                (5678, 999999L, @"C:\Program Files\Ubour's Test\engine\x86_64\goodbyedpi.exe")
+            },
+            stopWinDivert: true);
+
+        Assert.Contains("Wait-Process -Id 1234", script);
+        Assert.Contains("Ubour''s Test\\engine\\x86_64\\goodbyedpi.exe", script);
+        Assert.Contains("Wait-Process -Id $identity.Id -Timeout 5", script);
+        Assert.Contains("WinDivert", script);
+        Assert.Contains("sc.exe stop $svc", script);
+        Assert.Contains("sc.exe delete $svc", script);
+    }
+
+    [Fact]
+    public void WatchdogService_BuildWatchdogScript_OmitsWinDivertCleanup_WhenNotGoodbyeDpi()
+    {
+        string script = WatchdogService.BuildWatchdogScript(
+            1234,
+            new (int, long, string)[]
+            {
+                (5678, 999999L, @"C:\Ubour\engine\x86_64\sing-box.exe")
+            },
+            stopWinDivert: false);
+
+        Assert.Contains("Wait-Process -Id 1234", script);
+        Assert.Contains("sing-box.exe", script);
+        Assert.DoesNotContain("WinDivert", script);
+    }
+
     [Theory]
     [InlineData("-1", "-1")]
     [InlineData("-5", "-5")]
@@ -49,6 +108,9 @@ public class GoodbyeDpiManagerTests
             Assert.True(File.Exists(x64Exe), $"x86_64 goodbyedpi.exe must exist at {x64Exe}");
             Assert.True(File.Exists(Path.Combine(baseDir, "engine", "x86", "WinDivert.dll")));
             Assert.True(File.Exists(Path.Combine(baseDir, "engine", "x86_64", "WinDivert.dll")));
+            Assert.True(File.Exists(Path.Combine(baseDir, "engine", "x86", "usque.exe")), "x86 usque.exe must exist");
+            Assert.True(File.Exists(Path.Combine(baseDir, "engine", "x86_64", "usque.exe")), "x86_64 usque.exe must exist");
+            Assert.True(File.Exists(Path.Combine(baseDir, "licenses", "LICENSE-usque.txt")), "LICENSE-usque.txt must exist");
         }
     }
 }

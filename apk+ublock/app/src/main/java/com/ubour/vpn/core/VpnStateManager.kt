@@ -38,14 +38,44 @@ object VpnStateManager {
     private val _currentMode = MutableStateFlow(AppOperationMode.WARP_AND_ADBLOCK)
     val currentMode: StateFlow<AppOperationMode> = _currentMode.asStateFlow()
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    private val _activeWarpEndpoint = MutableStateFlow<String?>(null)
+    val activeWarpEndpoint: StateFlow<String?> = _activeWarpEndpoint.asStateFlow()
+
+    private val _isRecoveringWarp = MutableStateFlow(false)
+    val isRecoveringWarp: StateFlow<Boolean> = _isRecoveringWarp.asStateFlow()
+
     fun setOperationMode(mode: AppOperationMode) {
         _currentMode.value = mode
     }
 
+    fun setActiveWarpEndpoint(endpoint: String?) {
+        _activeWarpEndpoint.value = endpoint
+    }
+
+    fun setRecoveringWarp(recovering: Boolean) {
+        _isRecoveringWarp.value = recovering
+    }
+
+    fun reportError(message: String) {
+        _errorMessage.value = message
+    }
+
+    fun clearError() {
+        _errorMessage.value = null
+    }
+
     fun updateState(newState: VpnState) {
         _state.value = newState
+        if (newState == VpnState.CONNECTING || newState == VpnState.CONNECTED) {
+            _errorMessage.value = null
+        }
         if (newState == VpnState.DISCONNECTED) {
             _stats.value = TrafficStats()
+            _activeWarpEndpoint.value = null
+            _isRecoveringWarp.value = false
         }
     }
 

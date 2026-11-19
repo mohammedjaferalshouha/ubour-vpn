@@ -419,6 +419,47 @@
             </RadioGroup>
         </LinearLayout>
 
+        <!-- Cloudflare WARP Endpoints Card (Shown when WARP mode is selected) -->
+        <LinearLayout
+            android:id="@+id/warpEndpointCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:visibility="visible">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/warp_endpoint_card_title"
+                android:textColor="@color/text_primary"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvWarpEndpointSummary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/warp_summary_auto_default"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnManageWarpEndpoints"
+                android:layout_width="match_parent"
+                android:layout_height="42dp"
+                android:layout_marginTop="10dp"
+                android:backgroundTint="@color/cloudflare_orange"
+                android:text="@string/btn_manage_warp_endpoints"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
         <!-- DPI Bypass Mode Selector Card (Shown when Bypass mode is selected) -->
         <LinearLayout
             android:id="@+id/bypassModeCard"

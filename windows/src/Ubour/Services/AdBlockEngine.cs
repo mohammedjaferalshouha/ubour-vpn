@@ -66,6 +66,7 @@ public class AdBlockEngine
     private CancellationTokenSource? _cts;
     private string _upstreamDns = "1.1.1.1";
     private string _secondaryDns = "1.0.0.1";
+    private int? _upstreamSocksPort;
     public bool IsRunning { get; private set; } = false;
 
     public static void ResetStats()
@@ -284,10 +285,11 @@ public class AdBlockEngine
         }
     }
 
-    public bool Start(string upstreamDns = "1.1.1.1", string? secondaryDns = null, int port = 53)
+    public bool Start(string upstreamDns = "1.1.1.1", string? secondaryDns = null, int port = 53, int? upstreamSocksPort = null)
     {
         Stop();
         _upstreamDns = !string.IsNullOrWhiteSpace(upstreamDns) ? upstreamDns : "1.1.1.1";
+        _upstreamSocksPort = (upstreamSocksPort.HasValue && upstreamSocksPort.Value > 0) ? upstreamSocksPort.Value : null;
         if (!string.IsNullOrWhiteSpace(secondaryDns))
         {
             _secondaryDns = secondaryDns;
@@ -332,6 +334,7 @@ public class AdBlockEngine
     public void Stop()
     {
         IsRunning = false;
+        _upstreamSocksPort = null;
         try
         {
             _cts?.Cancel();
@@ -403,14 +406,7 @@ public class AdBlockEngine
                 return;
             }
 
-            // Primary upstream with 2500ms timeout
-            byte[]? upstreamResp = await QueryUpstreamUdpAsync(query, _upstreamDns, 2500, ct);
-
-            // Failover to secondary upstream if primary failed or timed out
-            if (upstreamResp == null && !string.IsNullOrWhiteSpace(_secondaryDns) && _secondaryDns != _upstreamDns)
-            {
-                upstreamResp = await QueryUpstreamUdpAsync(query, _secondaryDns, 2500, ct);
-            }
+            byte[]? upstreamResp = await ForwardDnsQueryAsync(query, 2500, ct, preferUdpDirect: true);
 
             if (upstreamResp != null)
             {
@@ -487,11 +483,7 @@ public class AdBlockEngine
                     return;
                 }
 
-                byte[]? tcpResp = await QueryUpstreamTcpAsync(queryBuf, _upstreamDns, 2500, ct);
-                if (tcpResp == null && !string.IsNullOrWhiteSpace(_secondaryDns) && _secondaryDns != _upstreamDns)
-                {
-                    tcpResp = await QueryUpstreamTcpAsync(queryBuf, _secondaryDns, 2500, ct);
-                }
+                byte[]? tcpResp = await ForwardDnsQueryAsync(queryBuf, 2500, ct, preferUdpDirect: false);
 
                 if (tcpResp != null)
                 {
@@ -652,6 +644,31 @@ public class AdBlockEngine
         }
     }
 
+    private async Task<byte[]?> ForwardDnsQueryAsync(byte[] query, int timeoutMs, CancellationToken ct, bool preferUdpDirect)
+    {
+        foreach (string upstreamIp in new[] { _upstreamDns, _secondaryDns })
+        {
+            if (string.IsNullOrWhiteSpace(upstreamIp)) continue;
+
+            byte[]? resp;
+            if (_upstreamSocksPort.HasValue)
+            {
+                resp = await QueryUpstreamTcpViaSocksAsync(query, upstreamIp, _upstreamSocksPort.Value, timeoutMs, ct);
+            }
+            else if (preferUdpDirect)
+            {
+                resp = await QueryUpstreamUdpAsync(query, upstreamIp, timeoutMs, ct);
+            }
+            else
+            {
+                resp = await QueryUpstreamTcpAsync(query, upstreamIp, timeoutMs, ct);
+            }
+
+            if (resp != null) return resp;
+        }
+        return null;
+    }
+
     private static async Task<byte[]?> QueryUpstreamTcpAsync(byte[] query, string upstreamIp, int timeoutMs, CancellationToken ct)
     {
         try
@@ -662,34 +679,99 @@ public class AdBlockEngine
 
             await upstreamTcp.ConnectAsync(IPAddress.Parse(upstreamIp), 53, timeoutCts.Token);
             using var upStream = upstreamTcp.GetStream();
-            upStream.ReadTimeout = timeoutMs;
-            upStream.WriteTimeout = timeoutMs;
-
-            byte[] lenBuf = new byte[] { (byte)((query.Length >> 8) & 0xFF), (byte)(query.Length & 0xFF) };
-            await upStream.WriteAsync(lenBuf, 0, 2, timeoutCts.Token);
-            await upStream.WriteAsync(query, 0, query.Length, timeoutCts.Token);
-
-            byte[] upLenBuf = new byte[2];
-            int upRead = await upStream.ReadAsync(upLenBuf, 0, 2, timeoutCts.Token);
-            if (upRead < 2) return null;
-
-            int respLen = (upLenBuf[0] << 8) | upLenBuf[1];
-            if (respLen <= 0 || respLen > 4096) return null;
-
-            byte[] respBuf = new byte[respLen];
-            int totalRespRead = 0;
-            while (totalRespRead < respLen)
-            {
-                int r = await upStream.ReadAsync(respBuf, totalRespRead, respLen - totalRespRead, timeoutCts.Token);
-                if (r <= 0) break;
-                totalRespRead += r;
-            }
-            return totalRespRead == respLen ? respBuf : null;
+            return await ExchangeTcpDnsFrameAsync(upStream, query, timeoutMs, timeoutCts.Token);
         }
         catch
         {
             return null;
         }
+    }
+
+    private static async Task<byte[]?> QueryUpstreamTcpViaSocksAsync(byte[] query, string upstreamIp, int socksPort, int timeoutMs, CancellationToken ct)
+    {
+        try
+        {
+            var destIp = IPAddress.Parse(upstreamIp).GetAddressBytes();
+            if (destIp.Length != 4) return null;
+
+            using var socksTcp = new TcpClient();
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(timeoutMs);
+
+            await socksTcp.ConnectAsync(IPAddress.Loopback, socksPort, timeoutCts.Token);
+            using var stream = socksTcp.GetStream();
+            stream.ReadTimeout = timeoutMs;
+            stream.WriteTimeout = timeoutMs;
+
+            // SOCKS5 greeting: version 5, 1 method (no-auth)
+            await stream.WriteAsync(new byte[] { 0x05, 0x01, 0x00 }, timeoutCts.Token);
+            byte[] greeting = new byte[2];
+            if (!await ReadExactAsync(stream, greeting, 2, timeoutCts.Token) || greeting[0] != 0x05 || greeting[1] != 0x00)
+                return null;
+
+            // SOCKS5 CONNECT to upstream IPv4:53
+            byte[] req = new byte[] { 0x05, 0x01, 0x00, 0x01, destIp[0], destIp[1], destIp[2], destIp[3], 0x00, 0x35 };
+            await stream.WriteAsync(req, timeoutCts.Token);
+            byte[] repHead = new byte[4];
+            if (!await ReadExactAsync(stream, repHead, 4, timeoutCts.Token) || repHead[1] != 0x00)
+                return null;
+
+            int addrLen = repHead[3] switch
+            {
+                0x01 => 4,
+                0x04 => 16,
+                0x03 => -1,
+                _ => 0
+            };
+            if (addrLen < 0)
+            {
+                byte[] lenByte = new byte[1];
+                if (!await ReadExactAsync(stream, lenByte, 1, timeoutCts.Token)) return null;
+                addrLen = lenByte[0];
+            }
+            if (addrLen > 0)
+            {
+                byte[] skipAddr = new byte[addrLen + 2];
+                if (!await ReadExactAsync(stream, skipAddr, skipAddr.Length, timeoutCts.Token)) return null;
+            }
+
+            return await ExchangeTcpDnsFrameAsync(stream, query, timeoutMs, timeoutCts.Token);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static async Task<byte[]?> ExchangeTcpDnsFrameAsync(Stream upStream, byte[] query, int timeoutMs, CancellationToken ct)
+    {
+        upStream.ReadTimeout = timeoutMs;
+        upStream.WriteTimeout = timeoutMs;
+
+        byte[] lenBuf = new byte[] { (byte)((query.Length >> 8) & 0xFF), (byte)(query.Length & 0xFF) };
+        await upStream.WriteAsync(lenBuf, 0, 2, ct);
+        await upStream.WriteAsync(query, 0, query.Length, ct);
+
+        byte[] upLenBuf = new byte[2];
+        if (!await ReadExactAsync(upStream, upLenBuf, 2, ct)) return null;
+
+        int respLen = (upLenBuf[0] << 8) | upLenBuf[1];
+        if (respLen <= 0 || respLen > 4096) return null;
+
+        byte[] respBuf = new byte[respLen];
+        return await ReadExactAsync(upStream, respBuf, respLen, ct) ? respBuf : null;
+    }
+
+    private static async Task<bool> ReadExactAsync(Stream stream, byte[] buffer, int count, CancellationToken ct)
+    {
+        int totalRead = 0;
+        while (totalRead < count)
+        {
+            int r = await stream.ReadAsync(buffer, totalRead, count - totalRead, ct);
+            if (r <= 0) return false;
+            totalRead += r;
+        }
+        return true;
     }
 
     private static byte[] CreateServFailResponse(byte[] query)

@@ -2,30 +2,96 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
-using System.Net.NetworkInformation;
 using System.Net.Sockets;
-using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Ubour.Services;
+
+public class WarpLocationInfo
+{
+    public string ColoCode { get; set; } = "";
+    public string CountryCode { get; set; } = "";
+    public string CityAr { get; set; } = "";
+    public string CityEn { get; set; } = "";
+    public string CountryAr { get; set; } = "";
+    public string CountryEn { get; set; } = "";
+    public string ExitIp { get; set; } = "";
+    public string WarpStatus { get; set; } = "";
+
+    public string FormatDisplay(string lang = "ar")
+    {
+        bool isAr = string.Equals(lang, "ar", StringComparison.OrdinalIgnoreCase);
+        string city = isAr ? CityAr : CityEn;
+        string country = isAr ? CountryAr : CountryEn;
+
+        string place;
+        if (!string.IsNullOrWhiteSpace(city) && !string.IsNullOrWhiteSpace(country))
+        {
+            place = $"{city}، {country}";
+            if (!isAr) place = $"{city}, {country}";
+        }
+        else if (!string.IsNullOrWhiteSpace(country))
+        {
+            place = country;
+        }
+        else if (!string.IsNullOrWhiteSpace(city))
+        {
+            place = city;
+        }
+        else
+        {
+            place = !string.IsNullOrWhiteSpace(CountryCode) ? CountryCode : (isAr ? "خادم كلاود فلير" : "Cloudflare Edge");
+        }
+
+        if (!string.IsNullOrWhiteSpace(ColoCode))
+        {
+            return $"{place} ({ColoCode})";
+        }
+        return place;
+    }
+}
 
 public class WarpEndpointItem
 {
     public string Host { get; set; } = "162.159.195.1";
     public int Port { get; set; } = 4500;
     public long LatencyMs { get; set; } = 0;
+    public double DownloadMbps { get; set; } = 0;
+    public bool IsReachable { get; set; } = false;
+    public bool WasScanned { get; set; } = false;
+    public string LocationName { get; set; } = "";
+    public string ColoCode { get; set; } = "";
     public string Note { get; set; } = "";
 
     public string DisplayText
     {
         get
         {
+            if (WasScanned)
+            {
+                if (IsReachable)
+                {
+                    string latencyPart = LatencyMs > 0 ? $"{LatencyMs} ms" : "";
+                    string speedPart = DownloadMbps > 0 ? $"{DownloadMbps:F1} Mbps" : "";
+                    string metrics = string.Join(" | ", new[] { latencyPart, speedPart }.Where(s => !string.IsNullOrEmpty(s)));
+                    string metricsStr = !string.IsNullOrEmpty(metrics) ? $" ({metrics})" : "";
+                    string locStr = !string.IsNullOrEmpty(LocationName) ? $" [{LocationName}]" : "";
+                    return $"{Host}:{Port}{metricsStr}{locStr} ✓";
+                }
+
+                string unreachNote = !string.IsNullOrEmpty(Note) ? $" - {Note}" : "";
+                return $"{Host}:{Port}{unreachNote}";
+            }
+
             string latencyStr = LatencyMs > 0 ? $" ({LatencyMs} ms)" : "";
             string noteStr = !string.IsNullOrEmpty(Note) ? $" - {Note}" : "";
             return $"{Host}:{Port}{latencyStr}{noteStr}";
@@ -142,72 +208,386 @@ public static class WarpManager
         return list;
     }
 
-    public static async Task<List<WarpEndpointItem>> ScanEndpointsAsync()
-    {
-        var ipLatencies = new ConcurrentDictionary<string, long>();
+    private static readonly Dictionary<string, (string CityAr, string CityEn, string CountryAr, string CountryEn)> ColoLocations =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["AMM"] = ("عمّان", "Amman", "الأردن", "Jordan"),
+            ["DXB"] = ("دبي", "Dubai", "الإمارات", "UAE"),
+            ["AUH"] = ("أبوظبي", "Abu Dhabi", "الإمارات", "UAE"),
+            ["RUH"] = ("الرياض", "Riyadh", "السعودية", "Saudi Arabia"),
+            ["JED"] = ("جدة", "Jeddah", "السعودية", "Saudi Arabia"),
+            ["DMM"] = ("الدمام", "Dammam", "السعودية", "Saudi Arabia"),
+            ["DOH"] = ("الدوحة", "Doha", "قطر", "Qatar"),
+            ["KWI"] = ("الكويت", "Kuwait City", "الكويت", "Kuwait"),
+            ["BAH"] = ("المنامة", "Manama", "البحرين", "Bahrain"),
+            ["MCT"] = ("مسقط", "Muscat", "عُمان", "Oman"),
+            ["CAI"] = ("القاهرة", "Cairo", "مصر", "Egypt"),
+            ["BGW"] = ("بغداد", "Baghdad", "العراق", "Iraq"),
+            ["BEY"] = ("بيروت", "Beirut", "لبنان", "Lebanon"),
+            ["TLV"] = ("تل أبيب", "Tel Aviv", "فلسطين/إسرائيل", "Israel"),
+            ["IST"] = ("إسطنبول", "Istanbul", "تركيا", "Turkey"),
+            ["FRA"] = ("فرانكفورت", "Frankfurt", "ألمانيا", "Germany"),
+            ["MUC"] = ("ميونخ", "Munich", "ألمانيا", "Germany"),
+            ["BER"] = ("برلين", "Berlin", "ألمانيا", "Germany"),
+            ["DUS"] = ("دوسلدورف", "Düsseldorf", "ألمانيا", "Germany"),
+            ["HAM"] = ("هامبورغ", "Hamburg", "ألمانيا", "Germany"),
+            ["CDG"] = ("باريس", "Paris", "فرنسا", "France"),
+            ["MRS"] = ("مارسيليا", "Marseille", "فرنسا", "France"),
+            ["LYS"] = ("ليون", "Lyon", "فرنسا", "France"),
+            ["LHR"] = ("لندن", "London", "المملكة المتحدة", "United Kingdom"),
+            ["MAN"] = ("مانشستر", "Manchester", "المملكة المتحدة", "United Kingdom"),
+            ["AMS"] = ("أمستردام", "Amsterdam", "هولندا", "Netherlands"),
+            ["BRU"] = ("بروكسل", "Brussels", "بلجيكا", "Belgium"),
+            ["ZRH"] = ("زيورخ", "Zurich", "سويسرا", "Switzerland"),
+            ["GVA"] = ("جنيف", "Geneva", "سويسرا", "Switzerland"),
+            ["VIE"] = ("فيينا", "Vienna", "النمسا", "Austria"),
+            ["MXP"] = ("ميلانو", "Milan", "إيطاليا", "Italy"),
+            ["FCO"] = ("روما", "Rome", "إيطاليا", "Italy"),
+            ["MAD"] = ("مدريد", "Madrid", "إسبانيا", "Spain"),
+            ["BCN"] = ("برشلونة", "Barcelona", "إسبانيا", "Spain"),
+            ["LIS"] = ("لشبونة", "Lisbon", "البرتغال", "Portugal"),
+            ["ATH"] = ("أثينا", "Athens", "اليونان", "Greece"),
+            ["WAW"] = ("وارسو", "Warsaw", "بولندا", "Poland"),
+            ["PRG"] = ("براغ", "Prague", "التشيك", "Czechia"),
+            ["BUD"] = ("بودابست", "Budapest", "المجر", "Hungary"),
+            ["OTP"] = ("بوخارست", "Bucharest", "رومانيا", "Romania"),
+            ["SOF"] = ("صوفيا", "Sofia", "بلغاريا", "Bulgaria"),
+            ["ARN"] = ("ستوكهولم", "Stockholm", "السويد", "Sweden"),
+            ["CPH"] = ("كوبنهاغن", "Copenhagen", "الدنمارك", "Denmark"),
+            ["OSL"] = ("أوسلو", "Oslo", "النرويج", "Norway"),
+            ["HEL"] = ("هلسنكي", "Helsinki", "فنلندا", "Finland"),
+            ["DUB"] = ("دبلن", "Dublin", "أيرلندا", "Ireland"),
+            ["IAD"] = ("أشبورن", "Ashburn", "الولايات المتحدة", "United States"),
+            ["EWR"] = ("نيوآرك", "Newark", "الولايات المتحدة", "United States"),
+            ["JFK"] = ("نيويورك", "New York", "الولايات المتحدة", "United States"),
+            ["ORD"] = ("شيكاغو", "Chicago", "الولايات المتحدة", "United States"),
+            ["DFW"] = ("دالاس", "Dallas", "الولايات المتحدة", "United States"),
+            ["LAX"] = ("لوس أنجلوس", "Los Angeles", "الولايات المتحدة", "United States"),
+            ["SJC"] = ("سان خوسيه", "San Jose", "الولايات المتحدة", "United States"),
+            ["SEA"] = ("سياتل", "Seattle", "الولايات المتحدة", "United States"),
+            ["MIA"] = ("ميامي", "Miami", "الولايات المتحدة", "United States"),
+            ["ATL"] = ("أتلانتا", "Atlanta", "الولايات المتحدة", "United States"),
+            ["YYZ"] = ("تورونتو", "Toronto", "كندا", "Canada"),
+            ["SIN"] = ("سنغافورة", "Singapore", "سنغافورة", "Singapore"),
+            ["HKG"] = ("هونغ كونغ", "Hong Kong", "هونغ كونغ", "Hong Kong"),
+            ["NRT"] = ("طوكيو", "Tokyo", "اليابان", "Japan"),
+            ["ICN"] = ("سيول", "Seoul", "كوريا الجنوبية", "South Korea"),
+            ["SYD"] = ("سيدني", "Sydney", "أستراليا", "Australia")
+        };
 
-        // 1. Fast parallel ICMP ping test to all candidate IPs
-        var pingTasks = CandidateIps.Select(async ip =>
+    public static WarpLocationInfo? ResolveLocationFromTrace(string? traceBody)
+    {
+        if (string.IsNullOrWhiteSpace(traceBody)) return null;
+
+        var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string line in traceBody.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            int eqIdx = line.IndexOf('=');
+            if (eqIdx > 0 && eqIdx < line.Length - 1)
+            {
+                fields[line.Substring(0, eqIdx).Trim()] = line.Substring(eqIdx + 1).Trim();
+            }
+        }
+
+        string colo = fields.TryGetValue("colo", out var c) ? c.ToUpperInvariant() : "";
+        string loc = fields.TryGetValue("loc", out var l) ? l.ToUpperInvariant() : "";
+        string ip = fields.TryGetValue("ip", out var ipVal) ? ipVal : "";
+        string warp = fields.TryGetValue("warp", out var wVal) ? wVal : "";
+
+        if (string.IsNullOrEmpty(colo) && string.IsNullOrEmpty(loc)) return null;
+
+        var info = new WarpLocationInfo
+        {
+            ColoCode = colo,
+            CountryCode = loc,
+            ExitIp = ip,
+            WarpStatus = warp
+        };
+
+        if (!string.IsNullOrEmpty(colo) && ColoLocations.TryGetValue(colo, out var known))
+        {
+            info.CityAr = known.CityAr;
+            info.CityEn = known.CityEn;
+            info.CountryAr = known.CountryAr;
+            info.CountryEn = known.CountryEn;
+            return info;
+        }
+
+        if (!string.IsNullOrEmpty(loc) && loc.Length == 2)
         {
             try
             {
-                using var ping = new Ping();
-                var reply = await ping.SendPingAsync(ip, 800);
-                if (reply.Status == IPStatus.Success && reply.RoundtripTime >= 0)
+                var region = new RegionInfo(loc);
+                info.CountryEn = region.EnglishName;
+                info.CountryAr = new CultureInfo("ar").TextInfo.ToTitleCase(region.DisplayName);
+                try
                 {
-                    ipLatencies[ip] = reply.RoundtripTime;
+                    // On Windows with ICU/NLS, ar-JO provides localized Arabic country names cleanly.
+                    info.CountryAr = region.NativeName;
+                    var arRegion = new RegionInfo($"ar-{loc}");
+                    info.CountryAr = arRegion.DisplayName;
+                }
+                catch
+                {
+                    info.CountryAr = region.DisplayName;
                 }
             }
             catch { }
-        });
-
-        await Task.WhenAll(pingTasks);
-
-        var sortedIps = ipLatencies.OrderBy(k => k.Value).Select(k => k.Key).ToList();
-        if (sortedIps.Count == 0)
-        {
-            sortedIps.AddRange(CandidateIps);
         }
 
-        var results = new List<WarpEndpointItem>();
+        return info;
+    }
 
-        // 2. Prioritize resilient ports (4500, 500, 1701) for the fastest IPs
-        var priorityPorts = new[] { 4500, 500, 1701 };
-        foreach (var ip in sortedIps)
+    public static Task<List<WarpEndpointItem>> ScanEndpointsAsync()
+    {
+        return ScanEndpointsAsync(baseDir: null, lang: "ar", speedAndLocationProbe: null);
+    }
+
+    public static async Task<List<WarpEndpointItem>> ScanEndpointsAsync(
+        string? baseDir,
+        string lang = "ar",
+        Func<WarpConfig, WarpEndpointItem, Task<(double DownloadMbps, WarpLocationInfo? Location)>>? speedAndLocationProbe = null)
+    {
+        WarpConfig? config = null;
+        try
         {
-            long lat = ipLatencies.TryGetValue(ip, out var l) ? l : 0;
-            foreach (var port in priorityPorts)
+            config = await GetOrRegisterConfigAsync(baseDir: baseDir);
+        }
+        catch { }
+
+        if (config == null || string.IsNullOrWhiteSpace(config.PrivateKey) || string.IsNullOrWhiteSpace(config.PeerPublicKey))
+        {
+            var (priv, pub) = GenerateCurve25519KeyPair(baseDir);
+            config = new WarpConfig
+            {
+                PrivateKey = priv,
+                PublicKey = pub,
+                PeerPublicKey = "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+                Reserved = new[] { 0, 0, 0 }
+            };
+        }
+
+        // Interleave port-outer / IP-inner so consecutive handshakes rotate across edge IPs
+        // instead of bursting a single anycast endpoint. Priority ports run first; remaining
+        // candidate ports only run if fewer than 14 endpoints respond.
+        var candidatePortSet = new HashSet<int>(CandidatePorts);
+        int[] priorityPortOrder =
+        {
+            4500, 2408, 500, 1701,
+            854, 859, 864, 878, 880, 890, 891, 894, 903, 908, 928, 1014, 1180
+        };
+        var priorityPortSet = new HashSet<int>();
+        var priorityPorts = new List<int>();
+        foreach (int p in priorityPortOrder)
+        {
+            if (candidatePortSet.Contains(p) && priorityPortSet.Add(p))
+            {
+                priorityPorts.Add(p);
+            }
+        }
+
+        var secondaryPorts = CandidatePorts.Where(p => !priorityPortSet.Contains(p)).Distinct().ToList();
+
+        var priorityPairs = BuildPortInterleavedPairs(CandidateIps, priorityPorts);
+        var reachable = new ConcurrentBag<WarpEndpointItem>();
+        var probedSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        await ProbeCandidateBatchAsync(priorityPairs, config, reachable, probedSet).ConfigureAwait(false);
+
+        if (reachable.Count < 14 && secondaryPorts.Count > 0)
+        {
+            var secondaryPairs = BuildPortInterleavedPairs(CandidateIps, secondaryPorts);
+            await ProbeCandidateBatchAsync(secondaryPairs, config, reachable, probedSet).ConfigureAwait(false);
+        }
+
+        var sortedReachable = reachable
+            .OrderBy(e => e.LatencyMs)
+            .ThenBy(e => e.Port == 4500 ? 0 : 1)
+            .ToList();
+
+        // Measure real download throughput & edge location on top responding endpoints
+        if (sortedReachable.Count > 0)
+        {
+            var probeFunc = speedAndLocationProbe ?? (async (cfg, item) =>
+            {
+                using var sb = new SingboxManager();
+                var res = await sb.VerifyWarpEndpointConnectivityAsync(
+                    baseDir ?? AppDomain.CurrentDomain.BaseDirectory,
+                    new WarpConfig
+                    {
+                        PrivateKey = cfg.PrivateKey,
+                        PublicKey = cfg.PublicKey,
+                        PeerPublicKey = cfg.PeerPublicKey,
+                        LocalIpv4 = cfg.LocalIpv4,
+                        LocalIpv6 = cfg.LocalIpv6,
+                        EndpointHost = item.Host,
+                        EndpointPort = item.Port,
+                        Reserved = cfg.Reserved
+                    },
+                    timeoutMs: 5000,
+                    measureSpeed: true).ConfigureAwait(false);
+
+                return res.Success ? (res.DownloadMbps, res.Location) : (0d, null);
+            });
+
+            foreach (var item in sortedReachable.Take(3))
+            {
+                try
+                {
+                    var (mbps, location) = await probeFunc(config, item).ConfigureAwait(false);
+                    if (mbps > 0) item.DownloadMbps = mbps;
+                    if (location != null)
+                    {
+                        item.ColoCode = location.ColoCode;
+                        item.LocationName = location.FormatDisplay(lang);
+                    }
+                }
+                catch { }
+            }
+
+            sortedReachable = sortedReachable
+                .OrderByDescending(e => e.DownloadMbps > 0 ? 1 : 0)
+                .ThenBy(e => e.LatencyMs)
+                .ThenByDescending(e => e.DownloadMbps)
+                .ToList();
+        }
+
+        var results = new List<WarpEndpointItem>(sortedReachable);
+        var reachableSet = new HashSet<string>(sortedReachable.Select(e => $"{e.Host}:{e.Port}"), StringComparer.OrdinalIgnoreCase);
+
+        bool isAr = string.Equals(lang, "ar", StringComparison.OrdinalIgnoreCase);
+        string noReplyLabel = isAr ? "غير مستجيب" : "No WireGuard response";
+
+        foreach (var def in GetDefaultEndpoints())
+        {
+            string key = $"{def.Host}:{def.Port}";
+            if (!reachableSet.Contains(key) && probedSet.Contains(key))
             {
                 results.Add(new WarpEndpointItem
                 {
-                    Host = ip,
-                    Port = port,
-                    LatencyMs = lat,
-                    Note = GetPortNote(port)
+                    Host = def.Host,
+                    Port = def.Port,
+                    LatencyMs = 0,
+                    IsReachable = false,
+                    WasScanned = true,
+                    Note = $"{def.Note} ({noReplyLabel})"
                 });
             }
         }
 
-        // 3. Add other ports for top IPs
-        foreach (var ip in sortedIps.Take(2))
+        return results;
+    }
+
+    /// <summary>
+    /// Builds unique (Host, Port) probe pairs ordered port-first so consecutive UDP packets alternate across IPs.
+    /// </summary>
+    private static List<(string Host, int Port)> BuildPortInterleavedPairs(string[] ips, IEnumerable<int> ports)
+    {
+        var pairs = new List<(string Host, int Port)>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (int port in ports)
         {
-            long lat = ipLatencies.TryGetValue(ip, out var l) ? l : 0;
-            foreach (var port in CandidatePorts)
+            foreach (string ip in ips)
             {
-                if (!results.Any(r => r.Host == ip && r.Port == port))
+                if (seen.Add($"{ip}:{port}"))
                 {
-                    results.Add(new WarpEndpointItem
-                    {
-                        Host = ip,
-                        Port = port,
-                        LatencyMs = lat,
-                        Note = GetPortNote(port)
-                    });
+                    pairs.Add((ip, port));
                 }
             }
         }
+        return pairs;
+    }
 
-        return results;
+    /// <summary>
+    /// Probes a batch of WireGuard endpoints with bounded concurrency and inter-packet pacing
+    /// to avoid triggering UDP flood or anycast rate-limiting on repeated scans.
+    /// </summary>
+    private static async Task ProbeCandidateBatchAsync(
+        IEnumerable<(string Host, int Port)> pairs,
+        WarpConfig config,
+        ConcurrentBag<WarpEndpointItem> reachable,
+        HashSet<string> probedSet)
+    {
+        using var semaphore = new SemaphoreSlim(8);
+        var tasks = new List<Task>();
+
+        foreach (var pair in pairs)
+        {
+            probedSet.Add($"{pair.Host}:{pair.Port}");
+            await semaphore.WaitAsync().ConfigureAwait(false);
+            await Task.Delay(25).ConfigureAwait(false);
+
+            var current = pair;
+            tasks.Add(Task.Run(async () =>
+            {
+                try
+                {
+                    var (ok, rttMs) = await ProbeWireGuardEndpointAsync(current.Host, current.Port, config, timeoutMs: 550).ConfigureAwait(false);
+                    if (ok)
+                    {
+                        reachable.Add(new WarpEndpointItem
+                        {
+                            Host = current.Host,
+                            Port = current.Port,
+                            LatencyMs = Math.Max(1, rttMs),
+                            IsReachable = true,
+                            WasScanned = true,
+                            Note = GetPortNote(current.Port)
+                        });
+                    }
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            }));
+        }
+
+        await Task.WhenAll(tasks).ConfigureAwait(false);
+    }
+
+    public static async Task<(bool Success, long LatencyMs)> ProbeWireGuardEndpointAsync(
+        string host,
+        int port,
+        WarpConfig config,
+        int timeoutMs = 800)
+    {
+        try
+        {
+            byte[] privBytes = Convert.FromBase64String(config.PrivateKey);
+            byte[] peerPubBytes = Convert.FromBase64String(config.PeerPublicKey);
+            if (privBytes.Length != 32 || peerPubBytes.Length != 32) return (false, 0);
+
+            IPAddress? targetIp = null;
+            if (!IPAddress.TryParse(host, out targetIp))
+            {
+                var addrs = await Dns.GetHostAddressesAsync(host).ConfigureAwait(false);
+                targetIp = addrs.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork) ?? addrs.FirstOrDefault();
+            }
+            if (targetIp == null) return (false, 0);
+
+            byte[] packet = WireGuardProbe.BuildHandshakeInitiation(privBytes, peerPubBytes, config.Reserved, out uint senderIndex);
+
+            using var udp = new UdpClient(targetIp.AddressFamily);
+            using var cts = new CancellationTokenSource(timeoutMs);
+            var sw = Stopwatch.StartNew();
+
+            await udp.SendAsync(packet, packet.Length, new IPEndPoint(targetIp, port)).ConfigureAwait(false);
+
+            while (!cts.IsCancellationRequested)
+            {
+                var receiveTask = udp.ReceiveAsync(cts.Token).AsTask();
+                var completed = await receiveTask.ConfigureAwait(false);
+                if (WireGuardProbe.IsMatchingHandshakeResponse(completed.Buffer, senderIndex))
+                {
+                    sw.Stop();
+                    return (true, sw.ElapsedMilliseconds);
+                }
+            }
+        }
+        catch { }
+
+        return (false, 0);
     }
 
     public static async Task<WarpConfig> GetOrRegisterConfigAsync(string? preferredHost = null, int? preferredPort = null, string? baseDir = null)
@@ -414,68 +794,7 @@ public static class WarpManager
         RandomNumberGenerator.Fill(fallbackPriv);
         fallbackPriv[0] &= 248;
         fallbackPriv[31] = (byte)((fallbackPriv[31] & 127) | 64);
-        byte[] fallbackPub = GeneratePublicKey(fallbackPriv);
+        byte[] fallbackPub = WireGuardProbe.X25519Basepoint(fallbackPriv);
         return (Convert.ToBase64String(fallbackPriv), Convert.ToBase64String(fallbackPub));
-    }
-
-    private static readonly BigInteger P = BigInteger.Pow(2, 255) - 19;
-    private static readonly BigInteger A24 = 121665;
-
-    private static byte[] GeneratePublicKey(byte[] priv)
-    {
-        BigInteger x1 = 9;
-        BigInteger x2 = 1, z2 = 0;
-        BigInteger x3 = x1, z3 = 1;
-        int swap = 0;
-
-        for (int t = 254; t >= 0; t--)
-        {
-            int byteIndex = t / 8;
-            int bitIndex = t % 8;
-            int bit = (priv[byteIndex] >> bitIndex) & 1;
-
-            if (bit != swap)
-            {
-                var tmpX = x2; x2 = x3; x3 = tmpX;
-                var tmpZ = z2; z2 = z3; z3 = tmpZ;
-                swap = bit;
-            }
-
-            var a = (x2 + z2) % P;
-            var aa = (a * a) % P;
-            var b = (x2 - z2) % P;
-            if (b < 0) b += P;
-            var bb = (b * b) % P;
-            var e = (aa - bb) % P;
-            if (e < 0) e += P;
-            var c = (x3 + z3) % P;
-            var d = (x3 - z3) % P;
-            if (d < 0) d += P;
-            var da = (d * a) % P;
-            var cb = (c * b) % P;
-            var sum = (da + cb) % P;
-            x3 = (sum * sum) % P;
-            var diff = (da - cb) % P;
-            if (diff < 0) diff += P;
-            z3 = (x1 * ((diff * diff) % P)) % P;
-            x2 = (aa * bb) % P;
-            z2 = (e * ((aa + A24 * e) % P)) % P;
-        }
-
-        if (swap == 1)
-        {
-            var tmpX = x2; x2 = x3; x3 = tmpX;
-            var tmpZ = z2; z2 = z3; z3 = tmpZ;
-        }
-
-        var inv = BigInteger.ModPow(z2, P - 2, P);
-        var res = (x2 * inv) % P;
-        byte[] raw = res.ToByteArray();
-        byte[] pub = new byte[32];
-        for (int i = 0; i < Math.Min(raw.Length, 32); i++)
-        {
-            pub[i] = raw[i];
-        }
-        return pub;
     }
 }

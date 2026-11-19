@@ -92,4 +92,37 @@
 
     <string name="vpn_permission_required">يلزم منح صلاحية VPN لبدء الاتصال</string>
     <string name="notification_permission_required">يرجى السماح بالإشعارات لإبقاء الاتصال نشطاً</string>
+    <string name="warp_error_title">تعذر الاتصال بنفق WARP</string>
+    <string name="warp_connection_failed">تعذر الاتصال الفعلي بنفق Cloudflare WARP. تم إيقاف الاتصال لحماية خصوصيتك دون الانتقال لأي وضع آخر.</string>
+    <string name="warp_connection_lost">انقطع الاتصال الفعلي بنفق Cloudflare WARP وتعذرت استعادته عبر المنافذ البديلة. تم إيقاف الخدمة لحماية اتصالك.</string>
+    <string name="warp_manual_connection_failed">تعذر الاتصال بالمنفذ المحدد يدوياً (%1$s:%2$d). تم إيقاف الاتصال التزاماً باختيارك اليدوي.</string>
+    <string name="warp_manual_connection_lost">انقطع الاتصال بالمنفذ المحدد يدوياً (%1$s:%2$d). تم إيقاف الخدمة التزاماً باختيارك اليدوي.</string>
+    <string name="status_recovering_warp">جاري استعادة الاتصال والانتقال تلقائياً لمنفذ بديل...</string>
+
+    <string name="warp_endpoint_card_title">منافذ ونقاط اتصال نفق كلاود فلير</string>
+    <string name="warp_summary_auto_default">الوضع التلقائي الذكي: يفحص ويختار أفضل منفذ تلقائياً</string>
+    <string name="warp_summary_auto_last">الوضع التلقائي الذكي (آخر منفذ ناجح: %1$s)</string>
+    <string name="warp_summary_auto_connected">متصل تلقائياً عبر المنفذ: %1$s</string>
+    <string name="warp_summary_manual">الوضع اليدوي الثابت: %1$s</string>
+    <string name="warp_summary_manual_connected">متصل يدوياً عبر المنفذ: %1$s</string>
+    <string name="btn_manage_warp_endpoints">فحص واختيار المنافذ</string>
+
+    <string name="dialog_warp_endpoints_title">فحص وإدارة منافذ نفق كلاود فلير</string>
+    <string name="warp_mode_tab_auto">تلقائي ذكي</string>
+    <string name="warp_mode_tab_manual">اختيار يدوي</string>
+    <string name="warp_dialog_status_auto">الوضع الحالي: اختيار تلقائي ذكي مع تبديل تلقائي عند الانقطاع</string>
+    <string name="warp_dialog_status_manual">الوضع الحالي: يدوي ثابت (%1$s) — يتوقف عند تعطل المنفذ</string>
+    <string name="btn_scan_warp_endpoints">فحص جميع المنافذ الآن</string>
+    <string name="btn_stop_scan_warp">إيقاف الفحص</string>
+    <string name="warp_scan_progress">تم فحص %1$d من %2$d — العاملة: %3$d</string>
+    <string name="warp_scan_hint">اضغط على أي منفذ لاعتماده يدوياً، أو اضغط قياس السرعة لفحص سرعة تنزيله الفعلية</string>
+    <string name="endpoint_state_untested">لم يُفحص</string>
+    <string name="endpoint_state_testing">جاري الفحص...</string>
+    <string name="endpoint_state_working">يعمل • %1$d ملي ثانية</string>
+    <string name="endpoint_state_working_speed">يعمل • %1$d ملي ثانية • %2$s ميجابت/ث</string>
+    <string name="endpoint_state_failed">لا يستجيب</string>
+    <string name="btn_measure_speed">قياس السرعة</string>
+    <string name="btn_measuring_speed">جاري القياس...</string>
+    <string name="warp_selection_saved_reconnect">تم حفظ الاختيار؛ أعد تشغيل الاتصال لتطبيقه فوراً</string>
+    <string name="warp_scan_error">تعذر بدء الفحص، تحقق من اتصالك بالإنترنت</string>
 </resources>

@@ -3,6 +3,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Security.Principal;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -27,6 +28,7 @@ public partial class MainWindow : Window
     private readonly AppSettings _settings;
     private readonly GoodbyeDpiManager _goodbyeDpi = new();
     private readonly SingboxManager _singbox = new();
+    private readonly UsqueManager _usque = new();
     private readonly AdBlockEngine _adBlock = new();
     private System.Windows.Forms.NotifyIcon? _notifyIcon;
 
@@ -34,13 +36,21 @@ public partial class MainWindow : Window
     private DispatcherTimer? _statsTimer;
     private DateTime _connectedTime;
     private string _baseDir = AppDomain.CurrentDomain.BaseDirectory;
+    private int _isExiting;
+    private WarpLocationInfo? _activeWarpLocation;
+    private string _activeWarpProtocolLabel = "";
+
+    private const double DefaultWindowHeight = 678;
 
     public MainWindow()
     {
         InitializeComponent();
+        ApplyWorkAreaBounds(recenter: true);
+        Loaded += (_, _) => ApplyWorkAreaBounds(recenter: false);
         _settings = AppSettings.Load();
 
         DetectBaseDirectory();
+        App.RegisterSessionManagers(_goodbyeDpi, _singbox, _adBlock, _usque);
 
         Task.Run(() => AdBlockEngine.Initialize(_baseDir));
 
@@ -54,6 +64,30 @@ public partial class MainWindow : Window
         SetupLogsListener();
     }
 
+    private void ApplyWorkAreaBounds(bool recenter = false)
+    {
+        var workArea = SystemParameters.WorkArea;
+        if (workArea.Height <= 0 || workArea.Width <= 0) return;
+
+        double maxAllowedHeight = Math.Max(480, workArea.Height - 8);
+        MaxHeight = maxAllowedHeight;
+        Height = Math.Min(DefaultWindowHeight, maxAllowedHeight);
+
+        if (recenter || double.IsNaN(Top) || double.IsNaN(Left))
+        {
+            Left = workArea.Left + Math.Max(0, (workArea.Width - Width) / 2.0);
+            Top = workArea.Top + Math.Max(0, (workArea.Height - Height) / 2.0);
+            return;
+        }
+
+        bool onPrimaryHorizontal = Left >= workArea.Left - Width && Left <= workArea.Right;
+        if (onPrimaryHorizontal)
+        {
+            if (Top < workArea.Top) Top = workArea.Top;
+            if (Top + Height > workArea.Bottom) Top = Math.Max(workArea.Top, workArea.Bottom - Height);
+        }
+    }
+
     private void DetectBaseDirectory()
     {
         string current = AppDomain.CurrentDomain.BaseDirectory;
@@ -63,15 +97,24 @@ public partial class MainWindow : Window
             return;
         }
 
-        string? parent = Directory.GetParent(current)?.Parent?.Parent?.Parent?.FullName;
-        if (parent != null)
+        string archPkg = Environment.Is64BitOperatingSystem ? "Ubour-windows-x64" : "Ubour-windows-x86";
+        var dir = new DirectoryInfo(current);
+        while (dir != null)
         {
-            string candidate64 = Path.Combine(parent, "Ubour-windows-x64");
-            if (Directory.Exists(Path.Combine(candidate64, "engine")))
+            foreach (string candidate in new[]
             {
-                _baseDir = candidate64;
-                return;
+                Path.Combine(dir.FullName, archPkg),
+                Path.Combine(dir.FullName, "windows", archPkg),
+                Path.Combine(dir.FullName, "publish", archPkg)
+            })
+            {
+                if (Directory.Exists(Path.Combine(candidate, "engine")))
+                {
+                    _baseDir = candidate;
+                    return;
+                }
             }
+            dir = dir.Parent;
         }
     }
 
@@ -108,6 +151,10 @@ public partial class MainWindow : Window
         LblWarpSubMode.Text = lang == "ar" ? "خيارات النفق:" : "Tunnel Options:";
         RbWarpWithAds.Content = LocalizationManager.Get("WarpOptionAdBlock", lang);
         RbWarpOnly.Content = LocalizationManager.Get("WarpOptionOnly", lang);
+        LblWarpProtocol.Text = LocalizationManager.Get("WarpProtocolLabel", lang);
+        RbWarpProtoAuto.Content = LocalizationManager.Get("WarpProtocolAuto", lang);
+        RbWarpProtoMasque.Content = LocalizationManager.Get("WarpProtocolMasque", lang);
+        RbWarpProtoWireGuard.Content = LocalizationManager.Get("WarpProtocolWireGuard", lang);
 
         LblWarpEndpoint.Text = LocalizationManager.Get("WarpEndpointLabel", lang);
         TxtScanButton.Text = LocalizationManager.Get("BtnScanPorts", lang);
@@ -207,15 +254,33 @@ public partial class MainWindow : Window
 
         return _settings.SelectedMode switch
         {
-            AppOperationMode.WARP_AND_ADBLOCK => _settings.WarpEnableAdBlock
-                ? (lang == "ar" ? "نفق كلاود فلير + تصفية الإعلانات نشطة" : "Cloudflare WARP + AdBlock Active")
-                : (lang == "ar" ? "نفق كلاود فلير نشط (أقصى سرعة)" : "Cloudflare WARP Active (Max Speed)"),
+            AppOperationMode.WARP_AND_ADBLOCK => FormatWarpConnectedStatusText(lang),
             AppOperationMode.ADBLOCK_ONLY => lang == "ar" ? "حظر الإعلانات محلياً (اتصال مباشر 100%)" : "AdBlock Active (100% Direct Line)",
             AppOperationMode.VPN_ONLY => lang == "ar" ? $"تجاوز الحجب GoodbyeDPI نشط {dpiSuffix}" : $"GoodbyeDPI Bypass Active {dpiSuffix}",
             AppOperationMode.VPN_AND_ADBLOCK => lang == "ar" ? $"تجاوز الحجب GoodbyeDPI {dpiSuffix} + تصفية الإعلانات نشطة" : $"GoodbyeDPI {dpiSuffix} + Local AdBlock Active",
             AppOperationMode.CUSTOM_VLESS => lang == "ar" ? "خادم VLESS مخصص + تصفية الإعلانات نشطة" : "Custom VLESS Proxy Active",
             _ => lang == "ar" ? "الاتصال نشط ومحمي" : "Connection Active"
         };
+    }
+
+    private string FormatWarpConnectedStatusText(string lang)
+    {
+        string baseText = _settings.WarpEnableAdBlock
+            ? (lang == "ar" ? "نفق كلاود فلير + تصفية الإعلانات نشطة" : "Cloudflare WARP + AdBlock Active")
+            : (lang == "ar" ? "نفق كلاود فلير نشط (أقصى سرعة)" : "Cloudflare WARP Active (Max Speed)");
+
+        string suffix = _activeWarpLocation != null
+            ? _activeWarpLocation.FormatDisplay(lang)
+            : "";
+
+        if (!string.IsNullOrWhiteSpace(_activeWarpProtocolLabel))
+        {
+            suffix = string.IsNullOrWhiteSpace(suffix)
+                ? $"[{_activeWarpProtocolLabel}]"
+                : $"{suffix} [{_activeWarpProtocolLabel}]";
+        }
+
+        return string.IsNullOrWhiteSpace(suffix) ? baseText : $"{baseText} — {suffix}";
     }
 
     private void SetModeControlsEnabled(bool enabled)
@@ -259,6 +324,19 @@ public partial class MainWindow : Window
             RbWarpOnly.IsChecked = true;
         }
 
+        if (string.Equals(_settings.WarpProtocol, "MASQUE", StringComparison.OrdinalIgnoreCase))
+        {
+            RbWarpProtoMasque.IsChecked = true;
+        }
+        else if (string.Equals(_settings.WarpProtocol, "WireGuard", StringComparison.OrdinalIgnoreCase))
+        {
+            RbWarpProtoWireGuard.IsChecked = true;
+        }
+        else
+        {
+            RbWarpProtoAuto.IsChecked = true;
+        }
+
         DpiSubModeContainer.Visibility = (mode == AppOperationMode.VPN_ONLY || mode == AppOperationMode.VPN_AND_ADBLOCK)
             ? Visibility.Visible
             : Visibility.Collapsed;
@@ -287,6 +365,25 @@ public partial class MainWindow : Window
         TxtModeWarpDesc.Text = _settings.WarpEnableAdBlock
             ? LocalizationManager.Get("ModeWarpDescWithAds", lang)
             : LocalizationManager.Get("ModeWarpDescOnly", lang);
+    }
+
+    private void WarpProtocol_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_settings == null || RbWarpProtoAuto == null) return;
+
+        if (RbWarpProtoMasque?.IsChecked == true)
+        {
+            _settings.WarpProtocol = "MASQUE";
+        }
+        else if (RbWarpProtoWireGuard?.IsChecked == true)
+        {
+            _settings.WarpProtocol = "WireGuard";
+        }
+        else
+        {
+            _settings.WarpProtocol = "Auto";
+        }
+        _settings.Save();
     }
 
     private void InitializeEndpointsUI()
@@ -320,12 +417,48 @@ public partial class MainWindow : Window
             _settings.WarpEndpointPort = item.Port;
             _settings.Save();
 
-            TxtWarpEndpointStatus.Text = string.Format(
-                _settings.Language == "ar" ? "المنفذ المعتمد: {0}:{1}" : "Selected endpoint: {0}:{1}",
-                item.Host,
-                item.Port
-            );
+            if (item.WasScanned && item.IsReachable)
+            {
+                TxtWarpEndpointStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34D399")!);
+                string metrics = BuildEndpointMetricsText(item);
+                TxtWarpEndpointStatus.Text = string.Format(
+                    LocalizationManager.Get("PortScanFoundSpeed", _settings.Language),
+                    item.Host,
+                    item.Port,
+                    metrics
+                );
+            }
+            else if (item.WasScanned && !item.IsReachable)
+            {
+                TxtWarpEndpointStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B")!);
+                TxtWarpEndpointStatus.Text = _settings.Language == "ar"
+                    ? $"المنفذ المحدد: {item.Host}:{item.Port} (غير مستجيب حالياً)"
+                    : $"Selected endpoint: {item.Host}:{item.Port} (no WireGuard response)";
+            }
+            else
+            {
+                TxtWarpEndpointStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34D399")!);
+                TxtWarpEndpointStatus.Text = string.Format(
+                    _settings.Language == "ar" ? "المنفذ المعتمد: {0}:{1}" : "Selected endpoint: {0}:{1}",
+                    item.Host,
+                    item.Port
+                );
+            }
         }
+    }
+
+    private static string BuildEndpointMetricsText(WarpEndpointItem item)
+    {
+        return BuildMetricsSummary(item.LatencyMs, item.DownloadMbps, item.LocationName);
+    }
+
+    private static string BuildMetricsSummary(long latencyMs, double downloadMbps, string? locationName)
+    {
+        var parts = new System.Collections.Generic.List<string>();
+        if (latencyMs > 0) parts.Add($"{latencyMs} ms");
+        if (downloadMbps > 0) parts.Add($"{downloadMbps:F1} Mbps");
+        if (!string.IsNullOrWhiteSpace(locationName)) parts.Add(locationName);
+        return string.Join(" | ", parts);
     }
 
     private async void BtnScanWarpPorts_Click(object sender, MouseButtonEventArgs e)
@@ -342,24 +475,90 @@ public partial class MainWindow : Window
             BtnScanWarpPorts.IsEnabled = false;
             TxtScanButton.Text = LocalizationManager.Get("ScanningPorts", _settings.Language);
             TxtScanIcon.Text = "⏳";
-            TxtWarpEndpointStatus.Text = _settings.Language == "ar" ? "جاري فحص سرعة واستجابة كافة المنافذ..." : "Scanning all ports and endpoints...";
+            TxtWarpEndpointStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#38BDF8")!);
+            TxtWarpEndpointStatus.Text = LocalizationManager.Get("ScanningPortsReal", _settings.Language);
 
-            var endpoints = await WarpManager.ScanEndpointsAsync();
+            bool probeMasque = !string.Equals(_settings.WarpProtocol, "WireGuard", StringComparison.OrdinalIgnoreCase);
+            var wgScanTask = WarpManager.ScanEndpointsAsync(_baseDir, _settings.Language);
+            Task<(WarpConnectivityResult Result, bool UsedHttp2)>? masqueProbeTask = probeMasque
+                ? UsqueManager.VerifyMasqueConnectivityAsync(_baseDir, allowHttp2Fallback: true, timeoutMs: 6500, measureSpeed: true)
+                : null;
+
+            if (masqueProbeTask != null)
+            {
+                await Task.WhenAll(wgScanTask, masqueProbeTask).ConfigureAwait(true);
+            }
+            else
+            {
+                await wgScanTask.ConfigureAwait(true);
+            }
+
+            var endpoints = wgScanTask.Result;
+            var masqueProbe = masqueProbeTask?.Result;
+
             if (endpoints.Count > 0)
             {
                 CmbWarpEndpoints.ItemsSource = endpoints;
-                var best = endpoints.First();
-                CmbWarpEndpoints.SelectedItem = best;
-                _settings.WarpEndpointHost = best.Host;
-                _settings.WarpEndpointPort = best.Port;
-                _settings.Save();
+                var best = endpoints.FirstOrDefault(x => x.IsReachable);
+                if (best != null)
+                {
+                    CmbWarpEndpoints.SelectedItem = best;
+                    _settings.WarpEndpointHost = best.Host;
+                    _settings.WarpEndpointPort = best.Port;
+                    _settings.Save();
 
-                TxtWarpEndpointStatus.Text = string.Format(
-                    LocalizationManager.Get("PortScanFound", _settings.Language),
-                    best.Host,
-                    best.Port,
-                    best.LatencyMs
-                );
+                    if (masqueProbe.HasValue && masqueProbe.Value.Result.Success)
+                    {
+                        var mRes = masqueProbe.Value.Result;
+                        string mMetrics = BuildMetricsSummary(mRes.LatencyMs, mRes.DownloadMbps, mRes.Location?.FormatDisplay(_settings.Language));
+                        TxtWarpEndpointStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34D399")!);
+                        TxtWarpEndpointStatus.Text = string.Format(
+                            LocalizationManager.Get("MasqueReadyStatus", _settings.Language),
+                            mMetrics
+                        );
+                    }
+                    else if (masqueProbe.HasValue && !masqueProbe.Value.Result.Success)
+                    {
+                        TxtWarpEndpointStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34D399")!);
+                        TxtWarpEndpointStatus.Text = string.Format(
+                            LocalizationManager.Get("MasqueUnavailableStatus", _settings.Language),
+                            best.Host,
+                            best.Port,
+                            BuildEndpointMetricsText(best)
+                        );
+                    }
+                    else
+                    {
+                        TxtWarpEndpointStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34D399")!);
+                        TxtWarpEndpointStatus.Text = string.Format(
+                            LocalizationManager.Get("PortScanFoundSpeed", _settings.Language),
+                            best.Host,
+                            best.Port,
+                            BuildEndpointMetricsText(best)
+                        );
+                    }
+                }
+                else
+                {
+                    var matchingCurrent = endpoints.FirstOrDefault(x => x.Host == _settings.WarpEndpointHost && x.Port == _settings.WarpEndpointPort)
+                                          ?? endpoints.First();
+                    CmbWarpEndpoints.SelectedItem = matchingCurrent;
+                    if (masqueProbe.HasValue && masqueProbe.Value.Result.Success)
+                    {
+                        var mRes = masqueProbe.Value.Result;
+                        string mMetrics = BuildMetricsSummary(mRes.LatencyMs, mRes.DownloadMbps, mRes.Location?.FormatDisplay(_settings.Language));
+                        TxtWarpEndpointStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#34D399")!);
+                        TxtWarpEndpointStatus.Text = string.Format(
+                            LocalizationManager.Get("MasqueReadyStatus", _settings.Language),
+                            mMetrics
+                        );
+                    }
+                    else
+                    {
+                        TxtWarpEndpointStatus.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B")!);
+                        TxtWarpEndpointStatus.Text = LocalizationManager.Get("PortScanNoneFound", _settings.Language);
+                    }
+                }
             }
         }
         catch { }
@@ -473,57 +672,12 @@ public partial class MainWindow : Window
                     break;
 
                 case AppOperationMode.WARP_AND_ADBLOCK:
-                    success = await Task.Run(async () =>
-                    {
-                        bool withAdBlock = _settings.WarpEnableAdBlock;
-                        if (withAdBlock)
-                        {
-                            bool dnsOk = _adBlock.Start(upstreamDns: "1.1.1.1", port: 53);
-                            if (!dnsOk || !_adBlock.VerifyHealth(53, 2000))
-                            {
-                                failureReason = "فشل فتح منفذ خادم الأسماء المحلي 53";
-                                _adBlock.Stop();
-                                return false;
-                            }
-                        }
-
-                        var warpConfig = await WarpManager.GetOrRegisterConfigAsync(_settings.WarpEndpointHost, _settings.WarpEndpointPort, _baseDir);
-                        warpConfig.EndpointHost = _settings.WarpEndpointHost;
-                        warpConfig.EndpointPort = _settings.WarpEndpointPort;
-                        bool sbOk = _singbox.StartWarp(_baseDir, warpConfig, enableAdBlock: withAdBlock);
-                        bool warpReady = sbOk && _singbox.VerifyRunning(2080, 2500) && _singbox.VerifyTunRunning(5000);
-                        if (!warpReady)
-                        {
-                            failureReason = string.IsNullOrWhiteSpace(_singbox.WarpStartupError)
-                                ? "لم يبدأ نفق WARP (TUN) بنجاح. تحقق من صلاحيات التطبيق وتعريف Wintun وسجل sing-box."
-                                : $"فشل بدء نفق WARP: {_singbox.WarpStartupError}";
-                            _singbox.Stop();
-                            if (withAdBlock) _adBlock.Stop();
-                            return false;
-                        }
-
-                        if (withAdBlock)
-                        {
-                            if (!DnsManager.SetLocalDns())
-                            {
-                                failureReason = "تعذر تطبيق DNS المحلي على جميع واجهات الشبكة";
-                                _singbox.Stop();
-                                _adBlock.Stop();
-                                DnsManager.RestoreDns();
-                                return false;
-                            }
-                        }
-                        else if (!DnsManager.SetCustomDns("1.1.1.1"))
-                        {
-                            failureReason = "تعذر تطبيق DNS المختار على جميع واجهات الشبكة";
-                            _singbox.Stop();
-                            DnsManager.RestoreDns();
-                            return false;
-                        }
-
-                        return true;
-                    });
+                {
+                    var (warpOk, warpErr) = await StartWarpConnectionAsync(_settings.WarpEnableAdBlock);
+                    success = warpOk;
+                    if (!warpOk) failureReason = warpErr;
                     break;
+                }
 
                 case AppOperationMode.VPN_AND_ADBLOCK:
                     success = await Task.Run(() =>
@@ -627,7 +781,7 @@ public partial class MainWindow : Window
             _connectedTime = DateTime.UtcNow;
             _currentState = VpnState.CONNECTED;
             _statsTimer?.Start();
-            WatchdogService.StartWatchdog(_singbox?.OwnedProcess, _goodbyeDpi?.OwnedProcess);
+            WatchdogService.StartWatchdog(_singbox?.OwnedProcess, _usque?.OwnedProcess, _goodbyeDpi?.OwnedProcess);
         }
         else
         {
@@ -642,20 +796,185 @@ public partial class MainWindow : Window
         UpdateStatusUI();
     }
 
+    private Task<(bool Success, string? ErrorMessage)> StartWarpConnectionAsync(bool withAdBlock)
+    {
+        return Task.Run(async () =>
+        {
+            string protocol = _settings.WarpProtocol ?? "Auto";
+
+            if (string.Equals(protocol, "WireGuard", StringComparison.OrdinalIgnoreCase))
+            {
+                return await TryConnectWarpViaWireGuardAsync(withAdBlock).ConfigureAwait(false);
+            }
+
+            // Official-style MASQUE path: HTTP/3 over QUIC (443) first, then HTTP/2 over TCP+TLS (443)
+            var h3 = await TryConnectWarpViaMasqueAsync(withAdBlock, useHttp2: false).ConfigureAwait(false);
+            if (h3.Success) return h3;
+
+            AppLogger.Warn($"[WARP] MASQUE HTTP/3 attempt failed ({h3.ErrorMessage}), trying HTTP/2 fallback...");
+            var h2 = await TryConnectWarpViaMasqueAsync(withAdBlock, useHttp2: true).ConfigureAwait(false);
+            if (h2.Success) return h2;
+
+            if (string.Equals(protocol, "MASQUE", StringComparison.OrdinalIgnoreCase))
+            {
+                return (false, LocalizationManager.Get("WarpConnectFailed", _settings.Language));
+            }
+
+            AppLogger.Warn($"[WARP] MASQUE HTTP/2 fallback failed ({h2.ErrorMessage}), falling back to WireGuard...");
+            return await TryConnectWarpViaWireGuardAsync(withAdBlock).ConfigureAwait(false);
+        });
+    }
+
+    private async Task<(bool Success, string? ErrorMessage)> TryConnectWarpViaMasqueAsync(bool withAdBlock, bool useHttp2)
+    {
+        try
+        {
+            var verify = await _usque.StartAndVerifyAsync(_baseDir, useHttp2: useHttp2, timeoutMs: 6500, measureSpeed: false).ConfigureAwait(false);
+            if (!verify.Success)
+            {
+                _usque.Stop();
+                return (false, verify.ErrorMessage);
+            }
+
+            _activeWarpLocation = verify.Location;
+            _activeWarpProtocolLabel = useHttp2 ? "MASQUE HTTP/2" : "MASQUE HTTP/3";
+
+            var (ok, err) = await FinalizeWarpTunnelAsync(
+                withAdBlock: withAdBlock,
+                adBlockUpstreamSocksPort: _usque.ListenPort,
+                startSingbox: () => _singbox.StartWarpViaSocks(_baseDir, _usque.ListenPort, _usque.EndpointHost, enableAdBlock: withAdBlock)
+            ).ConfigureAwait(false);
+
+            if (!ok)
+            {
+                _usque.Stop();
+                _activeWarpLocation = null;
+                _activeWarpProtocolLabel = "";
+            }
+            return (ok, err);
+        }
+        catch (Exception ex)
+        {
+            _usque.Stop();
+            _activeWarpLocation = null;
+            _activeWarpProtocolLabel = "";
+            return (false, ex.Message);
+        }
+    }
+
+    private async Task<(bool Success, string? ErrorMessage)> TryConnectWarpViaWireGuardAsync(bool withAdBlock)
+    {
+        try
+        {
+            var warpConfig = await WarpManager.GetOrRegisterConfigAsync(_settings.WarpEndpointHost, _settings.WarpEndpointPort, _baseDir).ConfigureAwait(false);
+            warpConfig.EndpointHost = _settings.WarpEndpointHost;
+            warpConfig.EndpointPort = _settings.WarpEndpointPort;
+
+            var preflight = await _singbox.VerifyWarpEndpointConnectivityAsync(_baseDir, warpConfig, timeoutMs: 5500, measureSpeed: false).ConfigureAwait(false);
+            if (!preflight.Success)
+            {
+                AppLogger.Warn($"[WARP] Endpoint preflight check failed for {warpConfig.EndpointHost}:{warpConfig.EndpointPort}: {preflight.ErrorMessage}");
+                return (false, LocalizationManager.Get("WarpConnectFailed", _settings.Language));
+            }
+
+            _activeWarpLocation = preflight.Location;
+            _activeWarpProtocolLabel = "WireGuard";
+
+            var (ok, err) = await FinalizeWarpTunnelAsync(
+                withAdBlock: withAdBlock,
+                adBlockUpstreamSocksPort: null,
+                startSingbox: () => _singbox.StartWarp(_baseDir, warpConfig, enableAdBlock: withAdBlock)
+            ).ConfigureAwait(false);
+
+            if (!ok)
+            {
+                _activeWarpLocation = null;
+                _activeWarpProtocolLabel = "";
+            }
+            return (ok, err);
+        }
+        catch (Exception ex)
+        {
+            _activeWarpLocation = null;
+            _activeWarpProtocolLabel = "";
+            return (false, ex.Message);
+        }
+    }
+
+    private async Task<(bool Success, string? ErrorMessage)> FinalizeWarpTunnelAsync(
+        bool withAdBlock,
+        int? adBlockUpstreamSocksPort,
+        Func<bool> startSingbox)
+    {
+        if (withAdBlock)
+        {
+            bool dnsOk = _adBlock.Start(upstreamDns: "1.1.1.1", port: 53, upstreamSocksPort: adBlockUpstreamSocksPort);
+            if (!dnsOk || !_adBlock.VerifyHealth(53, 2000))
+            {
+                _adBlock.Stop();
+                return (false, "فشل فتح منفذ خادم الأسماء المحلي 53");
+            }
+        }
+
+        bool sbOk = startSingbox();
+        bool warpReady = sbOk && _singbox.VerifyRunning(2080, 2500) && _singbox.VerifyTunRunning(5000);
+        if (!warpReady)
+        {
+            string err = string.IsNullOrWhiteSpace(_singbox.WarpStartupError)
+                ? "لم يبدأ نفق WARP (TUN) بنجاح. تحقق من صلاحيات التطبيق وتعريف Wintun وسجل sing-box."
+                : $"فشل بدء نفق WARP: {_singbox.WarpStartupError}";
+            _singbox.Stop();
+            if (withAdBlock) _adBlock.Stop();
+            return (false, err);
+        }
+
+        var liveCheck = await _singbox.ProbeWarpThroughRunningProxyAsync(2080, 4500, measureSpeed: false).ConfigureAwait(false);
+        if (!liveCheck.Success)
+        {
+            AppLogger.Warn($"[WARP] Live tunnel traffic check failed: {liveCheck.ErrorMessage}");
+            _singbox.Stop();
+            if (withAdBlock) _adBlock.Stop();
+            return (false, LocalizationManager.Get("WarpConnectFailed", _settings.Language));
+        }
+
+        _activeWarpLocation ??= liveCheck.Location;
+        if (_activeWarpLocation != null)
+        {
+            AppLogger.Info($"[WARP] Connected via {_activeWarpLocation.FormatDisplay(_settings.Language)} ({_activeWarpProtocolLabel})");
+        }
+
+        if (withAdBlock)
+        {
+            if (!DnsManager.SetLocalDns())
+            {
+                _singbox.Stop();
+                _adBlock.Stop();
+                DnsManager.RestoreDns();
+                return (false, "تعذر تطبيق DNS المحلي على جميع واجهات الشبكة");
+            }
+        }
+        else if (!DnsManager.SetCustomDns("1.1.1.1"))
+        {
+            _singbox.Stop();
+            DnsManager.RestoreDns();
+            return (false, "تعذر تطبيق DNS المختار على جميع واجهات الشبكة");
+        }
+
+        return (true, null);
+    }
+
     private async Task StopConnectionAsync()
     {
         _currentState = VpnState.DISCONNECTING;
         UpdateStatusUI();
 
         _statsTimer?.Stop();
+        _activeWarpLocation = null;
+        _activeWarpProtocolLabel = "";
         WatchdogService.StopWatchdog();
         await Task.Run(() =>
         {
-            try { _goodbyeDpi.Stop(); } catch { }
-            try { _singbox.Stop(); } catch { }
-            try { _adBlock.Stop(); } catch { }
-            try { DnsManager.RestoreDns(); } catch { }
-            try { ProxyManager.DisableProxy(); } catch { }
+            App.CleanupSession(_goodbyeDpi, _singbox, _adBlock, _usque);
         });
 
         _currentState = VpnState.DISCONNECTED;
@@ -770,7 +1089,7 @@ public partial class MainWindow : Window
             }
             else
             {
-                var streamInfo = Application.GetResourceStream(new Uri("pack://application:,,,/app.ico"));
+                var streamInfo = Application.GetResourceStream(new Uri("pack://application:,,,/Ubour;component/app.ico"));
                 if (streamInfo != null)
                 {
                     icon = new System.Drawing.Icon(streamInfo.Stream);
@@ -848,6 +1167,7 @@ public partial class MainWindow : Window
         Show();
         ShowInTaskbar = true;
         WindowState = WindowState.Normal;
+        ApplyWorkAreaBounds(recenter: false);
         Activate();
         Focus();
     }
@@ -870,6 +1190,12 @@ public partial class MainWindow : Window
 
     private void ExitApplicationCompletely()
     {
+        if (Interlocked.Exchange(ref _isExiting, 1) == 1) return;
+
+        try { _statsTimer?.Stop(); } catch { }
+        _activeWarpLocation = null;
+        _activeWarpProtocolLabel = "";
+
         try
         {
             if (_notifyIcon != null)
@@ -887,16 +1213,7 @@ public partial class MainWindow : Window
         }
         catch { }
 
-        try
-        {
-            WatchdogService.StopWatchdog();
-            _goodbyeDpi?.Stop();
-            _singbox?.Stop();
-            _adBlock?.Stop();
-            DnsManager.RestoreDns();
-            ProxyManager.DisableProxy();
-        }
-        catch { }
+        App.CleanupSession(_goodbyeDpi, _singbox, _adBlock, _usque);
 
         try
         {

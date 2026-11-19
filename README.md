@@ -19,11 +19,11 @@
 
 <br/>
 
-### ⚡ One-Click Direct Downloads (تحميل مباشر بنقرة واحدة)
+### ⚡ One-Click Direct Downloads (v1.6.12 — تحميل مباشر بنقرة واحدة)
 
-[![Download Android APK](https://img.shields.io/badge/Download-Android%20APK%20(Universal)-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-VPN-Release.apk)
-[![Download Windows x64](https://img.shields.io/badge/Download-Windows%20x64%20(64--bit)-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x64.zip)
-[![Download Windows x86](https://img.shields.io/badge/Download-Windows%20x86%20(32--bit)-5C2D91?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x86.zip)
+[![Download Android APK v1.6.12](https://img.shields.io/badge/Download_v1.6.12-Android%20APK%20(Universal)-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-VPN-Release.apk)
+[![Download Windows x64 v1.6.12](https://img.shields.io/badge/Download_v1.6.12-Windows%20x64%20(64--bit)-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x64.zip)
+[![Download Windows x86 v1.6.12](https://img.shields.io/badge/Download_v1.6.12-Windows%20x86%20(32--bit)-5C2D91?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x86.zip)
 [![Interactive Knowledge Graph](https://img.shields.io/badge/Interactive%20Graph-Explore%20Architecture-8A2BE2?style=for-the-badge&logo=diagram-next&logoColor=white)](https://mohammedjaferalshouha.github.io/ubour-vpn/)
 [![All Releases & Archive](https://img.shields.io/badge/All%20Releases-Previous%20Versions%20Archive-orange?style=for-the-badge&logo=github&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases)
 
@@ -82,9 +82,12 @@ Unlike conventional VPN services that route all your internet traffic through ex
   3. *AdBlock Only*: Ultra-light battery saver mode for pure local ad blocking.
   4. *Cloudflare WARP + AdBlock*: Full encrypted tunnel via Cloudflare WARP.
 * **Custom VLESS Reality Support**: Built-in Sing-box core supporting direct VLESS Reality custom endpoints.
+* **Smart & Manual WARP Endpoint Manager**: Interactive full WARP endpoint scanner with per-endpoint download speed testing, automatic failover/recovery on drop, and network-aware endpoint memory (Wi-Fi / Cellular / Ethernet).
+* **Strict Fail-Closed WARP Protection**: Stops cleanly if WARP or a manually selected endpoint fails without silently falling back to an unintended mode.
 * **Upstream Updates Center**: Live checking and one-click rules update against official upstream repositories.
 * **Cryptographically Signed**: Official production keystore with Android V2/V3 signature schemes for seamless OTA updates.
 * **Modern Material 3 Interface**: Elegant Dark/Light mode with comprehensive Arabic (RTL) & English localization.
+* **Verified Android Testing**: 37 passing Android unit tests across automated CI/CD.
 
 <a id="windows-app"></a>
 ### 💻 Windows PC Application (`windows/src/Ubour`)
@@ -92,24 +95,25 @@ Unlike conventional VPN services that route all your internet traffic through ex
   1. *Bypass Only (GoodbyeDPI)*: Direct kernel-level DPI evasion via WinDivert with zero latency and native speeds.
   2. *Bypass + AdBlock*: Full DPI bypass combined with local DNS ad and telemetry filtering.
   3. *AdBlock Only*: Ultra-low footprint local DNS ad blocking without packet manipulation.
-  4. *Cloudflare WARP*: Full WireGuard tunnel via high-performance Wintun virtual network adapter and Sing-box core.
-* **⚡ One-Click WARP Port Scanner**: Built-in port latency tester to scan and pick the most responsive Cloudflare WARP port (`2408`, `4500`, `1701`, etc.) automatically.
+  4. *Cloudflare WARP*: Encrypted tunnel with multi-protocol selector: `Auto (Official)` (MASQUE → WireGuard), `MASQUE (443)` via bundled `usque` v4.2.1 (HTTP/3 QUIC & HTTP/2 TCP+TLS), and `WireGuard` via Wintun & Sing-box.
+* **⚡ Real Handshake & Speed WARP Scanner**: Built-in scanner performing real WireGuard handshakes and speed checks across Cloudflare WARP endpoints and ports (`2408`, `4500`, `1701`, etc.), plus `MASQUE (443)` availability probing.
+* **AdBlock Over MASQUE & Watchdog Safety**: Local AdBlock DNS forwarding over SOCKS5 in MASQUE mode, with unified Watchdog cleanup covering `sing-box`, `usque`, and `WinDivert`.
 * **Custom Endpoint & Port Selector**: Configure custom Cloudflare clean IPs and ports (`WarpEndpointHost`, `WarpEndpointPort`) directly from the GUI.
 * **Sub-Mode Toggles**: Choose between *With AdBlock* (dual protection) or *Tunnel Only* (maximum throughput).
 * **Local Custom Configuration**: Supports loading custom `singbox_warp.json` configurations directly from the application folder.
 * **Dual Architecture Standalone**: Native x64 and x86 standalone binaries without requiring external runtimes.
 * **Built-in Auto Updater**: Automatic verification against the latest GitHub releases.
-* **Rigorous Verification**: 81 comprehensive unit tests passing with 100% success across automated CI/CD.
+* **Rigorous Verification**: 104 passing unit tests across automated CI/CD.
 
 ---
 
-## 📦 Direct Downloads & Packages Table
+## 📦 Direct Downloads & Packages Table (v1.6.12)
 
 | Platform | Direct Download Link | Architecture | Type | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **Android APK** | [📥 **Download Universal APK**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-VPN-Release.apk) | `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` | Universal Signed Release APK | Verified ✓ |
-| **Windows x64** | [📥 **Download Windows x64**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x64.zip) | `x64` (64-bit) | Standalone Executable (Win 10/11) | Verified ✓ |
-| **Windows x86** | [📥 **Download Windows x86**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x86.zip) | `x86` (32-bit) | Standalone Executable (Win 7/8/10/11) | Verified ✓ |
+| **Android APK (v1.6.12)** | [📥 **Download Universal APK**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-VPN-Release.apk) | `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` | Universal Signed Release APK | Verified ✓ |
+| **Windows x64 (v1.6.12)** | [📥 **Download Windows x64**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x64.zip) | `x64` (64-bit) | Standalone Executable (Win 10/11) | Verified ✓ |
+| **Windows x86 (v1.6.12)** | [📥 **Download Windows x86**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x86.zip) | `x86` (32-bit) | Standalone Executable (Win 7/8/10/11) | Verified ✓ |
 | **All Releases** | [📚 **View Full Release Archive**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases) | All Platforms | Full Release Changelog & Assets | Complete |
 
 ---
@@ -134,7 +138,7 @@ The output APK is located at: `app/build/outputs/apk/release/app-release.apk`
 ```bash
 cd ubour-vpn/windows/src
 
-# Run all 81 unit tests
+# Run all 104 passing Windows unit tests
 dotnet test Ubour.Tests/Ubour.Tests.csproj -c Release
 
 # Publish Windows applications (Self-Contained Portable)
@@ -163,6 +167,7 @@ Ubour is built upon outstanding open-source projects:
 - **[Wintun](https://www.wintun.net/)** by WireGuard LLC — High-performance TUN driver for Windows.
 - **[ByeDPI](https://github.com/hiddify/ByeDPI)** & **[ByeDPIAndroid](https://github.com/dovecoteescapee/ByeDPIAndroid)** by dovecoteescapee & hufrea — Android native ByeDPI engine.
 - **[Sing-box](https://github.com/SagerNet/sing-box)** — Universal proxy platform for WARP & VLESS.
+- **[usque](https://github.com/Diniboy1123/usque)** — Open-source Cloudflare WARP MASQUE engine (MIT License, see [`LICENSE-usque.txt`](LICENSE-usque.txt)).
 - **[uBlock Origin](https://github.com/gorhill/uBlock)** by Raymond Hill (gorhill) — Open-source content blocking rules.
 - **[AdGuard Filters](https://github.com/AdguardTeam/AdguardFilters)** — Comprehensive ad and tracking protection rulesets.
 

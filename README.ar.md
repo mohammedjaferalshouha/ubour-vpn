@@ -19,11 +19,11 @@
 
 <br/>
 
-### ⚡ أزرار التحميل المباشر الفوري (بنقرة واحدة)
+### ⚡ أزرار التحميل المباشر الفوري (الإصدار v1.6.12 — بنقرة واحدة)
 
-[![تحميل للأندرويد APK](https://img.shields.io/badge/تحميل_مباشر-نسخة_الأندرويد_APK-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-VPN-Release.apk)
-[![تحميل لويندوز 64 بت](https://img.shields.io/badge/تحميل_مباشر-ويندوز_64_بت_x64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x64.zip)
-[![تحميل لويندوز 32 بت](https://img.shields.io/badge/تحميل_مباشر-ويندوز_32_بت_x86-5C2D91?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x86.zip)
+[![تحميل للأندرويد APK v1.6.12](https://img.shields.io/badge/تحميل_v1.6.12-نسخة_الأندرويد_APK-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-VPN-Release.apk)
+[![تحميل لويندوز 64 بت v1.6.12](https://img.shields.io/badge/تحميل_v1.6.12-ويندوز_64_بت_x64-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x64.zip)
+[![تحميل لويندوز 32 بت v1.6.12](https://img.shields.io/badge/تحميل_v1.6.12-ويندوز_32_بت_x86-5C2D91?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x86.zip)
 [![استعراض الخريطة التفاعلية](https://img.shields.io/badge/الخريطة_التفاعلية-استكشاف_معمارية_المشروع-8A2BE2?style=for-the-badge&logo=diagram-next&logoColor=white)](https://mohammedjaferalshouha.github.io/ubour-vpn/)
 [![أرشيف جميع الإصدارات](https://img.shields.io/badge/أرشيف_الإصدارات-كافة_النسخ_السابقة-orange?style=for-the-badge&logo=github&logoColor=white)](https://github.com/mohammedjaferalshouha/ubour-vpn/releases)
 
@@ -81,10 +81,13 @@
   3. *منع الإعلانات فقط*: وضع خفيف وموفر للبطارية لتصفية الإعلانات.
   4. *نفق كلاود فلير العالمي (WARP) + منع الإعلانات*: اتصال مشفر بالكامل عبر شبكة WARP.
 * **دعم خوادم VLESS Reality**: إمكانية إضافة وإدارة خوادم VLESS متقدمة عبر محرك Sing-box.
+* **إدارة وفحص منافذ نفق كلاود فلير (تلقائي ذكي ويدوي)**: فاحص تفاعلي شامل للمنافذ مع قياس سرعة التنزيل الفعلية لكل منفذ، وانتقال وتبديل تلقائي عند الانقطاع، وذاكرة منفذ خاصة بكل شبكة (Wi-Fi / Cellular / Ethernet).
+* **حماية إغلاق صارمة لنفق WARP**: إيقاف الاتصال لحماية الخصوصية عند تعذر نفق WARP أو المنفذ المحدد يدوياً دون الانتقال تلقائياً لأي وضع آخر.
 * **مركز التحديثات الحية للمحركات**: فحص فوري ومستمر للإصدارات من المستودعات الرسمية وتحديث القواعد بضغطة زر.
 * **خوادم DNS مستقلة**: الاعتماد القياسي على Google DNS (8.8.8.8) مع إمكانية التبديل إلى AdGuard DNS و Quad9 و Cloudflare.
 * **توقيع رقمي رسمي (Release Signing)**: موقع بمفتاح تشفير رسمي دائم مع دعم شهادات V2 و V3 لقبول التحديثات التلقائية مستقبلاً بسلاسة.
 * **واجهة حديثة Material 3**: دعم كامل للوضع الداكن والفاتح واللغة العربية والإنجليزية.
+* **اختبارات أندرويد موثقة**: 37 اختبار وحدات آلي ناجح بنسبة 100% عبر مسارات العمل الآلية.
 
 <a id="windows-app"></a>
 ### 💻 تطبيق الكمبيوتر لويندوز (`windows/src/Ubour`)
@@ -92,24 +95,25 @@
   1. *فك الحجب فقط (Bypass Only)*: تجاوز الحجب المباشر عبر محرك GoodbyeDPI وتكامل WinDivert بأقصى سرعة اتصال أصلية وبدون وسيط.
   2. *فك الحجب + مانع الإعلانات (Bypass + AdBlock)*: يجمع بين تجاوز الحجب المباشر وتصفية الإعلانات ومسارات التتبع محلياً عبر DNS.
   3. *مانع الإعلانات فقط (AdBlock Only)*: وضع خفيف جداً يكتفي بتصفية إعلانات النطاقات محلياً بدون أي تعديل على الحزم.
-  4. *نفق كلاود فلير (Cloudflare WARP)*: نفق مشفر بالكامل عبر بروتوكول WireGuard ومحول الشبكة عالي الأداء Wintun ومحرك Sing-box.
-* **⚡ فاحص ومحدد المنافذ التلقائي (Port Scanner)**: زر فحص منافذ فوري في الواجهة لاختيار المنفذ الأسرع والأقل زمناً للاستجابة تلقائياً (`2408`، `4500`، `1701`، وغيرها).
+  4. *نفق كلاود فلير (Cloudflare WARP)*: محدد بروتوكول مرن يشمل `تلقائي (كالرسمي)` (MASQUE ثم WireGuard)، و`MASQUE (443)` عبر محرك `usque` الإصدار 4.2.1 (بروتوكول HTTP/3 QUIC و HTTP/2 TCP+TLS)، و`WireGuard` عبر محول Wintun ومحرك Sing-box.
+* **⚡ فاحص المصافحة الحقيقية والسرعة للمنافذ**: زر فحص يجري مصافحة WireGuard حقيقية وقياس سرعة لمنافذ وخوادم كلاود فلير (`2408`، `4500`، `1701`، وغيرها) مع فحص جاهزية مسار `MASQUE (443)`.
+* **تصفية الإعلانات عبر MASQUE وحماية Watchdog**: تمرير استعلامات DNS لمانع الإعلانات عبر SOCKS5 في وضع MASQUE، مع تنظيف موحد عبر Watchdog يشمل `sing-box` و`usque` و`WinDivert`.
 * **إمكانية تخصيص الخوادم والمنافذ**: تخصيص عناوين النفق والمنافذ (`WarpEndpointHost` و `WarpEndpointPort`) مباشرة من إعدادات البرنامج.
 * **خيارات التشغيل الفرعية**: التبديل الفوري بين *مع مانع الإعلانات* أو *النفق فقط (أقصى سرعة)*.
 * **دعم التعديل المحلي للملفات**: إمكانية قراءة ملف التخصيص `singbox_warp.json` مباشرة من مجلد البرنامج لتسهيل التجارب والتطوير.
 * **حزم مستقلة محمولة (Portable)**: جاهزة للعمل مباشرة لمعماريتي 64 بت و 32 بت بدون الحاجة لتثبيت أي متطلبات مسبقة.
 * **فاحص التحديثات التلقائي**: التحقق من التحديثات بضغطة زر واحدة عبر واجهة برمجة GitHub الرسمية.
-* **اختبارات شاملة وموثقة**: ٨١ اختبار وحدوي آلي ناجح بنسبة 100% عبر مسارات العمل الآلية.
+* **اختبارات شاملة وموثقة**: 104 اختبارات وحدوية آلية ناجحة عبر مسارات العمل الآلية.
 
 ---
 
-## 📦 جدول التحميل المباشر والحزم
+## 📦 جدول التحميل المباشر والحزم (v1.6.12)
 
 | المنصة | رابط التحميل المباشر | المعمارية | النوع | الحالة |
 | :--- | :--- | :--- | :--- | :--- |
-| **تطبيق أندرويد** | [📥 **تحميل الحزمة الرسمية APK**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-VPN-Release.apk) | `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` | حزمة التثبيت الرسمية الموقعة | موثق بنجاح ✓ |
-| **ويندوز 64 بت** | [📥 **تحميل حزمة 64 بت**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x64.zip) | `x64` (64-bit) | حزمة جاهزة للتشغيل (Win 10/11) | موثق بنجاح ✓ |
-| **ويندوز 32 بت** | [📥 **تحميل حزمة 32 بت**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x86.zip) | `x86` (32-bit) | حزمة جاهزة للتشغيل (Win 7/8/10/11) | موثق بنجاح ✓ |
+| **تطبيق أندرويد (v1.6.12)** | [📥 **تحميل الحزمة الرسمية APK**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-VPN-Release.apk) | `arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86` | حزمة التثبيت الرسمية الموقعة | موثق بنجاح ✓ |
+| **ويندوز 64 بت (v1.6.12)** | [📥 **تحميل حزمة 64 بت**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x64.zip) | `x64` (64-bit) | حزمة جاهزة للتشغيل (Win 10/11) | موثق بنجاح ✓ |
+| **ويندوز 32 بت (v1.6.12)** | [📥 **تحميل حزمة 32 بت**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases/latest/download/Ubour-windows-x86.zip) | `x86` (32-bit) | حزمة جاهزة للتشغيل (Win 7/8/10/11) | موثق بنجاح ✓ |
 | **الإصدارات السابقة** | [📚 **أرشيف كافة الإصدارات**](https://github.com/mohammedjaferalshouha/ubour-vpn/releases) | جميع المنصات | الأرشيف الكامل للإصدارات وسجل التغييرات | مكتمل |
 
 ---
@@ -133,7 +137,7 @@ cd ubour-vpn/apk+ublock
 ```bash
 cd ubour-vpn/windows/src
 
-# تشغيل كافة الاختبارات الوحدوية البالغ عددها 81 اختباراً
+# تشغيل كافة الاختبارات الوحدوية الناجحة (104 اختبارات)
 dotnet test Ubour.Tests/Ubour.Tests.csproj -c Release
 
 # بناء ونشر الحزم المستقلة المحمولة لويندوز
@@ -162,6 +166,7 @@ dotnet publish Ubour/Ubour.csproj -c Release -r win-x86 --self-contained true
 - **[Wintun](https://www.wintun.net/)** من WireGuard LLC — تعريف محول الشبكة الافتراضي فائق الأداء لويندوز.
 - **[ByeDPI](https://github.com/hiddify/ByeDPI)** و **[ByeDPIAndroid](https://github.com/dovecoteescapee/ByeDPIAndroid)** للمطورين dovecoteescapee و hufrea — محرك ByeDPI للأندرويد.
 - **[Sing-box](https://github.com/SagerNet/sing-box)** — المنظومة الشاملة لدعم WARP و VLESS.
+- **[usque](https://github.com/Diniboy1123/usque)** — محرك Cloudflare WARP MASQUE مفتوح المصدر (رخصة MIT، راجع [`LICENSE-usque.txt`](LICENSE-usque.txt)).
 - **[uBlock Origin](https://github.com/gorhill/uBlock)** للمطور Raymond Hill (gorhill) — قواعد حظر الإعلانات المفتوحة المصدر.
 - **[AdGuard Filters](https://github.com/AdguardTeam/AdguardFilters)** — قوائم حماية الإعلانات والتتبع الشاملة.
 

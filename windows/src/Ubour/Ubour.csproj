@@ -13,11 +13,15 @@
     <RootNamespace>Ubour</RootNamespace>
     <PublishSingleFile>false</PublishSingleFile>
     <SelfContained>false</SelfContained>
-    <Version>1.6.11</Version>
-    <AssemblyVersion>1.6.11.0</AssemblyVersion>
-    <FileVersion>1.6.11.0</FileVersion>
-    <InformationalVersion>1.6.11</InformationalVersion>
+    <Version>1.6.12</Version>
+    <AssemblyVersion>1.6.12.0</AssemblyVersion>
+    <FileVersion>1.6.12.0</FileVersion>
+    <InformationalVersion>1.6.12</InformationalVersion>
   </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ubour.Tests" />
+  </ItemGroup>
 
   <ItemGroup>
     <Resource Include="app.ico" />

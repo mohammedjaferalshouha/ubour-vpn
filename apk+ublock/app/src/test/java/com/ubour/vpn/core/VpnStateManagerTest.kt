@@ -8,6 +8,7 @@ class VpnStateManagerTest {
 
     @Before
     fun setUp() {
+        VpnStateManager.clearError()
         VpnStateManager.updateState(VpnState.DISCONNECTED)
     }
 
@@ -77,5 +78,35 @@ class VpnStateManagerTest {
         val resetStats = VpnStateManager.stats.value
         assertEquals(0L, resetStats.rxBytes)
         assertEquals(0L, resetStats.txBytes)
+    }
+
+    @Test
+    fun testErrorMessageLifecycle() {
+        assertNull(VpnStateManager.errorMessage.value)
+
+        VpnStateManager.updateState(VpnState.DISCONNECTED)
+        VpnStateManager.reportError("WARP tunnel failed")
+        assertEquals("WARP tunnel failed", VpnStateManager.errorMessage.value)
+
+        VpnStateManager.clearError()
+        assertNull(VpnStateManager.errorMessage.value)
+
+        VpnStateManager.reportError("WARP tunnel lost")
+        VpnStateManager.updateState(VpnState.CONNECTING)
+        assertNull(VpnStateManager.errorMessage.value)
+    }
+
+    @Test
+    fun testActiveWarpEndpointAndRecoveryResetOnDisconnect() {
+        VpnStateManager.updateState(VpnState.CONNECTED)
+        VpnStateManager.setActiveWarpEndpoint("162.159.195.1:4500")
+        VpnStateManager.setRecoveringWarp(true)
+
+        assertEquals("162.159.195.1:4500", VpnStateManager.activeWarpEndpoint.value)
+        assertTrue(VpnStateManager.isRecoveringWarp.value)
+
+        VpnStateManager.updateState(VpnState.DISCONNECTED)
+        assertNull(VpnStateManager.activeWarpEndpoint.value)
+        assertFalse(VpnStateManager.isRecoveringWarp.value)
     }
 }

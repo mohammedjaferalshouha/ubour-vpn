@@ -33,6 +33,7 @@ import com.ubour.vpn.R
 import com.ubour.vpn.adblock.AdBlockEngine
 import com.ubour.vpn.adblock.FilterUpdateService
 import com.ubour.vpn.core.AppOperationMode
+import com.ubour.vpn.core.SingboxManager
 import com.ubour.vpn.core.TrafficStats
 import com.ubour.vpn.core.VpnState
 import com.ubour.vpn.core.VpnStateManager
@@ -40,8 +41,15 @@ import com.ubour.vpn.databinding.ActivityMainBinding
 import com.ubour.vpn.databinding.DialogAppsSelectorBinding
 import com.ubour.vpn.databinding.DialogSettingsBinding
 import com.ubour.vpn.databinding.DialogUpdateBinding
+import com.ubour.vpn.databinding.DialogWarpEndpointsBinding
 import com.ubour.vpn.service.UbourVpnService
 import com.ubour.vpn.service.UpdateService
+import com.ubour.vpn.warp.EndpointCheckState
+import com.ubour.vpn.warp.WarpEndpointStatus
+import com.ubour.vpn.warp.WarpManager
+import com.ubour.vpn.warp.WarpSelectionMode
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -49,6 +57,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var prefs: SharedPreferences
+    private var errorDialog: AlertDialog? = null
 
     private val vpnPrepareLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -131,25 +140,30 @@ class MainActivity : AppCompatActivity() {
         when (savedOpMode) {
             AppOperationMode.VPN_AND_ADBLOCK.ordinal -> {
                 binding.rbOpFull.isChecked = true
+                binding.warpEndpointCard.visibility = View.GONE
                 binding.bypassModeCard.visibility = View.VISIBLE
                 binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_emerald))
             }
             AppOperationMode.ADBLOCK_ONLY.ordinal -> {
                 binding.rbOpAdBlockOnly.isChecked = true
+                binding.warpEndpointCard.visibility = View.GONE
                 binding.bypassModeCard.visibility = View.GONE
                 binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_shield))
             }
             AppOperationMode.VPN_ONLY.ordinal -> {
                 binding.rbOpVpnOnly.isChecked = true
+                binding.warpEndpointCard.visibility = View.GONE
                 binding.bypassModeCard.visibility = View.VISIBLE
                 binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_cyan))
             }
             else -> {
                 binding.rbOpWarp.isChecked = true
+                binding.warpEndpointCard.visibility = View.VISIBLE
                 binding.bypassModeCard.visibility = View.GONE
                 binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.cloudflare_orange))
             }
         }
+        refreshWarpEndpointSummary()
 
         binding.switchAdBlock.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("adblock_enabled", isChecked).apply()
@@ -163,6 +177,7 @@ class MainActivity : AppCompatActivity() {
         binding.rgOpModes.setOnCheckedChangeListener { _, checkedId ->
             val opMode = when (checkedId) {
                 R.id.rbOpFull -> {
+                    binding.warpEndpointCard.visibility = View.GONE
                     binding.bypassModeCard.visibility = View.VISIBLE
                     binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_emerald))
                     if (!binding.switchAdBlock.isChecked) {
@@ -171,6 +186,7 @@ class MainActivity : AppCompatActivity() {
                     AppOperationMode.VPN_AND_ADBLOCK
                 }
                 R.id.rbOpAdBlockOnly -> {
+                    binding.warpEndpointCard.visibility = View.GONE
                     binding.bypassModeCard.visibility = View.GONE
                     binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_shield))
                     if (!binding.switchAdBlock.isChecked) {
@@ -179,6 +195,7 @@ class MainActivity : AppCompatActivity() {
                     AppOperationMode.ADBLOCK_ONLY
                 }
                 R.id.rbOpVpnOnly -> {
+                    binding.warpEndpointCard.visibility = View.GONE
                     binding.bypassModeCard.visibility = View.VISIBLE
                     binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.accent_cyan))
                     if (binding.switchAdBlock.isChecked) {
@@ -187,11 +204,13 @@ class MainActivity : AppCompatActivity() {
                     AppOperationMode.VPN_ONLY
                 }
                 else -> {
+                    binding.warpEndpointCard.visibility = View.VISIBLE
                     binding.bypassModeCard.visibility = View.GONE
                     binding.ivShieldIcon.setColorFilter(ContextCompat.getColor(this, R.color.cloudflare_orange))
                     if (!binding.switchAdBlock.isChecked) {
                         binding.switchAdBlock.isChecked = true
                     }
+                    refreshWarpEndpointSummary()
                     AppOperationMode.WARP_AND_ADBLOCK
                 }
             }
@@ -225,6 +244,10 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnCheckUpdates.setOnClickListener {
             showUpdateDialog()
+        }
+
+        binding.btnManageWarpEndpoints.setOnClickListener {
+            showWarpEndpointsDialog()
         }
     }
 
@@ -317,6 +340,39 @@ class MainActivity : AppCompatActivity() {
                         updateStatsUI(stats)
                     }
                 }
+                launch {
+                    VpnStateManager.errorMessage.collect { errorMsg ->
+                        if (!errorMsg.isNullOrBlank()) {
+                            binding.tvStatusDesc.text = errorMsg
+                            errorDialog?.dismiss()
+                            errorDialog = AlertDialog.Builder(this@MainActivity)
+                                .setTitle(R.string.warp_error_title)
+                                .setMessage(errorMsg)
+                                .setPositiveButton(R.string.btn_close, null)
+                                .show()
+                            VpnStateManager.clearError()
+                        }
+                    }
+                }
+                launch {
+                    VpnStateManager.activeWarpEndpoint.collect {
+                        refreshWarpEndpointSummary()
+                    }
+                }
+                launch {
+                    VpnStateManager.isRecoveringWarp.collect { recovering ->
+                        refreshWarpEndpointSummary()
+                        if (VpnStateManager.state.value == VpnState.CONNECTED &&
+                            VpnStateManager.currentMode.value == AppOperationMode.WARP_AND_ADBLOCK
+                        ) {
+                            binding.tvStatusDesc.text = if (recovering) {
+                                getString(R.string.status_recovering_warp)
+                            } else {
+                                getString(R.string.status_desc_on)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -339,6 +395,7 @@ class MainActivity : AppCompatActivity() {
                 setModeControlsEnabled(true)
             }
             VpnState.CONNECTING -> {
+                errorDialog?.dismiss()
                 binding.tvStatusTitle.text = getString(R.string.status_connecting)
                 binding.tvStatusDesc.text = getString(R.string.status_desc_off)
                 binding.statusDot.backgroundTintList = ColorStateList.valueOf(amber)
@@ -375,6 +432,7 @@ class MainActivity : AppCompatActivity() {
                 setModeControlsEnabled(false)
             }
         }
+        refreshWarpEndpointSummary()
     }
 
     private fun updateStatsUI(stats: TrafficStats) {
@@ -407,6 +465,263 @@ class MainActivity : AppCompatActivity() {
         binding.rbModeStandard.isEnabled = enabled
         binding.rbModeFast.isEnabled = enabled
         binding.rbModeAggressive.isEnabled = enabled
+        val vpnState = VpnStateManager.state.value
+        binding.btnManageWarpEndpoints.isEnabled =
+            (vpnState == VpnState.DISCONNECTED || vpnState == VpnState.CONNECTED)
+    }
+
+    private fun refreshWarpEndpointSummary() {
+        val state = VpnStateManager.state.value
+        val activeEp = VpnStateManager.activeWarpEndpoint.value
+        val recovering = VpnStateManager.isRecoveringWarp.value
+        val mode = WarpManager.getSelectionMode(this)
+        val manualEp = WarpManager.getManualEndpoint(this)
+        val lastEp = WarpManager.getLastWorkingEndpoint(this)
+
+        binding.tvWarpEndpointSummary.text = when {
+            recovering -> getString(R.string.status_recovering_warp)
+            state == VpnState.CONNECTED &&
+                VpnStateManager.currentMode.value == AppOperationMode.WARP_AND_ADBLOCK &&
+                !activeEp.isNullOrBlank() -> {
+                if (mode == WarpSelectionMode.MANUAL) {
+                    getString(R.string.warp_summary_manual_connected, activeEp)
+                } else {
+                    getString(R.string.warp_summary_auto_connected, activeEp)
+                }
+            }
+            mode == WarpSelectionMode.MANUAL && manualEp != null -> {
+                getString(R.string.warp_summary_manual, "${manualEp.first}:${manualEp.second}")
+            }
+            lastEp != null -> {
+                getString(R.string.warp_summary_auto_last, "${lastEp.first}:${lastEp.second}")
+            }
+            else -> {
+                getString(R.string.warp_summary_auto_default)
+            }
+        }
+    }
+
+    private fun showWarpEndpointsDialog() {
+        val dialogBinding = DialogWarpEndpointsBinding.inflate(layoutInflater)
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogBinding.root)
+            .create()
+
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        val baseList = WarpManager.DEFAULT_WARP_ENDPOINTS.toMutableList()
+        val existingManual = WarpManager.getManualEndpoint(this)
+        if (existingManual != null && !baseList.contains(existingManual)) {
+            baseList.add(0, existingManual)
+        }
+
+        val endpointItems = baseList.map { (h, p) ->
+            WarpEndpointStatus(
+                host = h,
+                port = p,
+                noteArabic = WarpManager.getPortNoteArabic(p)
+            )
+        }.toMutableList()
+
+        val textMuted = ContextCompat.getColor(this, R.color.text_muted)
+        val emerald = ContextCompat.getColor(this, R.color.accent_emerald)
+        val amber = ContextCompat.getColor(this, R.color.accent_amber)
+
+        var scanJob: Job? = null
+        var speedJob: Job? = null
+        lateinit var adapter: WarpEndpointsAdapter
+
+        fun updateModeTabsAndHeader() {
+            val mode = WarpManager.getSelectionMode(this)
+            val manual = WarpManager.getManualEndpoint(this)
+            if (mode == WarpSelectionMode.AUTO) {
+                dialogBinding.btnWarpModeAuto.setBackgroundResource(R.drawable.bg_tab_selected)
+                dialogBinding.btnWarpModeAuto.setTextColor(Color.WHITE)
+                dialogBinding.btnWarpModeManual.setBackgroundResource(0)
+                dialogBinding.btnWarpModeManual.setTextColor(textMuted)
+                dialogBinding.tvWarpDialogModeStatus.setTextColor(emerald)
+                dialogBinding.tvWarpDialogModeStatus.text = getString(R.string.warp_dialog_status_auto)
+                adapter.setSelectedManualEndpoint(null)
+            } else {
+                val key = if (manual != null) "${manual.first}:${manual.second}" else ""
+                dialogBinding.btnWarpModeManual.setBackgroundResource(R.drawable.bg_tab_selected)
+                dialogBinding.btnWarpModeManual.setTextColor(Color.WHITE)
+                dialogBinding.btnWarpModeAuto.setBackgroundResource(0)
+                dialogBinding.btnWarpModeAuto.setTextColor(textMuted)
+                dialogBinding.tvWarpDialogModeStatus.setTextColor(amber)
+                dialogBinding.tvWarpDialogModeStatus.text = getString(R.string.warp_dialog_status_manual, key)
+                adapter.setSelectedManualEndpoint(key)
+            }
+            refreshWarpEndpointSummary()
+        }
+
+        fun notifyReconnectIfActive() {
+            if (VpnStateManager.state.value == VpnState.CONNECTED &&
+                VpnStateManager.currentMode.value == AppOperationMode.WARP_AND_ADBLOCK
+            ) {
+                Toast.makeText(this, R.string.warp_selection_saved_reconnect, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        adapter = WarpEndpointsAdapter(
+            items = endpointItems,
+            selectedManualKey = if (WarpManager.getSelectionMode(this) == WarpSelectionMode.MANUAL && existingManual != null) {
+                "${existingManual.first}:${existingManual.second}"
+            } else {
+                null
+            },
+            onSelectEndpoint = { chosen ->
+                WarpManager.setManualEndpoint(this, chosen.host, chosen.port)
+                updateModeTabsAndHeader()
+                notifyReconnectIfActive()
+            },
+            onMeasureSpeed = { item, _ ->
+                if (scanJob?.isActive == true || speedJob?.isActive == true) return@WarpEndpointsAdapter
+                item.isSpeedTesting = true
+                adapter.notifyDataSetChanged()
+                speedJob = lifecycleScope.launch {
+                    try {
+                        val res = WarpManager.measureEndpointSpeedMbps(
+                            context = applicationContext,
+                            host = item.host,
+                            port = item.port
+                        )
+                        item.checkState = if (res.working) EndpointCheckState.WORKING else EndpointCheckState.FAILED
+                        item.latencyMs = res.latencyMs
+                        item.speedMbps = res.speedMbps
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        item.checkState = EndpointCheckState.FAILED
+                        item.latencyMs = -1L
+                    } finally {
+                        item.isSpeedTesting = false
+                        adapter.notifyDataSetChanged()
+                    }
+                }
+            }
+        )
+
+        dialogBinding.rvWarpEndpoints.layoutManager = LinearLayoutManager(this)
+        dialogBinding.rvWarpEndpoints.adapter = adapter
+        updateModeTabsAndHeader()
+
+        dialogBinding.btnWarpModeAuto.setOnClickListener {
+            WarpManager.setAutoSelectionMode(this)
+            updateModeTabsAndHeader()
+            notifyReconnectIfActive()
+        }
+
+        dialogBinding.btnWarpModeManual.setOnClickListener {
+            val currentManual = WarpManager.getManualEndpoint(this)
+            val fallbackItem = endpointItems.firstOrNull { it.checkState == EndpointCheckState.WORKING }
+                ?: endpointItems.firstOrNull()
+            val host = currentManual?.first ?: fallbackItem?.host ?: "162.159.195.1"
+            val port = currentManual?.second ?: fallbackItem?.port ?: 4500
+            WarpManager.setManualEndpoint(this, host, port)
+            updateModeTabsAndHeader()
+            notifyReconnectIfActive()
+        }
+
+        dialogBinding.btnScanEndpoints.setOnClickListener {
+            if (scanJob?.isActive == true) {
+                scanJob?.cancel()
+                WarpManager.stopInteractiveProbe()
+                return@setOnClickListener
+            }
+            speedJob?.cancel()
+
+            endpointItems.forEach {
+                it.checkState = EndpointCheckState.UNTESTED
+                it.latencyMs = -1L
+                it.isSpeedTesting = false
+            }
+            adapter.isFullScanRunning = true
+            dialogBinding.pbScanEndpoints.max = endpointItems.size
+            dialogBinding.pbScanEndpoints.progress = 0
+            dialogBinding.pbScanEndpoints.visibility = View.VISIBLE
+            dialogBinding.btnScanEndpoints.text = getString(R.string.btn_stop_scan_warp)
+
+            var scannedCount = 0
+            var workingCount = 0
+            val targets = endpointItems.map { it.host to it.port }
+
+            scanJob = lifecycleScope.launch {
+                var finishedAll = false
+                try {
+                    WarpManager.scanEndpointsInteractive(
+                        context = applicationContext,
+                        endpoints = targets,
+                        batchSize = 8,
+                        timeoutMs = 1350L,
+                        onBatchStarting = { batch ->
+                            val batchKeys = batch.map { "${it.first}:${it.second}" }.toSet()
+                            endpointItems.forEach {
+                                if (batchKeys.contains(it.key)) {
+                                    it.checkState = EndpointCheckState.TESTING
+                                }
+                            }
+                            adapter.notifyDataSetChanged()
+                        },
+                        onBatchResult = { results ->
+                            val byKey = results.associateBy { "${it.host}:${it.port}" }
+                            endpointItems.forEach { item ->
+                                val res = byKey[item.key]
+                                if (res != null) {
+                                    scannedCount++
+                                    if (res.working) {
+                                        workingCount++
+                                        item.checkState = EndpointCheckState.WORKING
+                                        item.latencyMs = res.latencyMs
+                                    } else {
+                                        item.checkState = EndpointCheckState.FAILED
+                                        item.latencyMs = -1L
+                                    }
+                                }
+                            }
+                            dialogBinding.pbScanEndpoints.progress = scannedCount
+                            dialogBinding.tvScanSummary.text = getString(
+                                R.string.warp_scan_progress,
+                                scannedCount,
+                                endpointItems.size,
+                                workingCount
+                            )
+                            adapter.notifyDataSetChanged()
+                        }
+                    )
+                    finishedAll = true
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    Toast.makeText(this@MainActivity, R.string.warp_scan_error, Toast.LENGTH_SHORT).show()
+                } finally {
+                    endpointItems.forEach {
+                        if (it.checkState == EndpointCheckState.TESTING) {
+                            it.checkState = EndpointCheckState.UNTESTED
+                        }
+                    }
+                    adapter.isFullScanRunning = false
+                    if (finishedAll) {
+                        adapter.sortWorkingFirst()
+                        dialogBinding.rvWarpEndpoints.scrollToPosition(0)
+                    }
+                    dialogBinding.pbScanEndpoints.visibility = View.GONE
+                    dialogBinding.btnScanEndpoints.text = getString(R.string.btn_scan_warp_endpoints)
+                }
+            }
+        }
+
+        dialogBinding.btnCloseWarpDialog.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.setOnDismissListener {
+            scanJob?.cancel()
+            speedJob?.cancel()
+            WarpManager.stopInteractiveProbe()
+        }
+
+        dialog.show()
     }
 
     private fun showSettingsDialog() {
