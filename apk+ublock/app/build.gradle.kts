@@ -24,8 +24,8 @@ android {
         applicationId = "com.ubour.vpn"
         minSdk = 24
         targetSdk = 35
-        versionCode = propVersionCode ?: 10612
-        versionName = propVersionName ?: "1.6.12"
+        versionCode = propVersionCode ?: 10613
+        versionName = propVersionName ?: "1.6.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
